@@ -1,6 +1,9 @@
 import { useState } from "react";
 import FileUploadBox from "./components/FileUploadBox";
-import { OcctImportJSResult, OcctImportMesh } from "./occt-import-js/types";
+import {
+  OcctImportJSResult,
+  OcctImportMesh,
+} from "../public/occt-import-js/types";
 import ThreeCanvas from "./components/ThreeCanvas";
 import ThreeObjectMesh from "./components/ThreeObjectMesh";
 import ThreeEnvironment from "./components/ThreeEnvironment";

@@ -1,50 +1,67 @@
-# React + TypeScript + Vite
+# STEP Viewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern web-based STEP file viewer built with React and Three.js. View the live demo at [https://step-viewer.vercel.app/](https://step-viewer.vercel.app/)
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This project provides a simple and modern interface for viewing STEP (ISO 10303) files directly in your browser. Built with modern web technologies, it offers a lightweight and efficient way to visualize 3D CAD files.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- Drag and drop file upload
+- Real-time 3D visualization
+- Modern, responsive interface
+- Client-side file processing
+- Camera controls for model inspection
 
-- Configure the top-level `parserOptions` property like this:
+## Technology Stack
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+- [React](https://reactjs.org/) - UI Framework
+- [occt-import-js](https://github.com/kovacsv/occt-import-js) - STEP file parsing
+- [React Three Fiber](https://docs.pmnd.rs/react-three-fiber) - Three.js React renderer
+- [Drei](https://drei.pmnd.rs/) - Useful helpers for React Three Fiber
+- [Vite](https://vitejs.dev/) - Build tool and development server
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+
+### Installation
+
+1. Clone the repository
+
+2. Install dependencies
+
+```bash
+npm install
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+3. Start the development server
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```bash
+npm run dev
 ```
+
+The application will be available at `http://localhost:5173`
+
+## Future Development
+
+While the current implementation focuses on STEP files, the project architecture allows for easy extension to support additional 3D file formats such as:
+
+- IGES (.iges, .igs)
+- BREP (.brep)
+- STL (.stl)
+- OBJ (.obj)
+- And more...
+
+## Inspiration
+
+This project was inspired by [Online 3D Viewer](https://3dviewer.net/) but takes a modern approach using React and contemporary web technologies for a more maintainable and extensible codebase.
+
+## Contributing
+
+Contributions are welcome! Feel free to submit issues and pull requests.
+

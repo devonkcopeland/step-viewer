@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Edges } from "@react-three/drei";
-import { OcctImportMesh } from "../occt-import-js/types";
+import { OcctImportMesh } from "../../public/occt-import-js/types";
 
 function ThreeObjectMesh({
   mesh,
