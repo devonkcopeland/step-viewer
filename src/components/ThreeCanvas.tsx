@@ -58,14 +58,18 @@ const ThreeCanvas = ({
             key={controlsKey}
             makeDefault
             rotateSpeed={5}
-            zoomSpeed={1.2}
+            zoomSpeed={1.8}
             panSpeed={0.8}
             staticMoving
+            minZoom={0.001}
+            maxZoom={10000}
             noRotate={!controlsEnabled}
             noPan={!controlsEnabled}
             noZoom={!controlsEnabled}
           />
-          <Bounds fit clip observe margin={1.2} maxDuration={BOUNDS_MAX_DURATION_S}>
+          {/* No `observe`: Bounds should fit once on load, not re-fit on every
+              re-render (which was overriding user zoom and blocking zoom-out). */}
+          <Bounds fit clip margin={1.2} maxDuration={BOUNDS_MAX_DURATION_S}>
             {children}
           </Bounds>
         </Canvas>
