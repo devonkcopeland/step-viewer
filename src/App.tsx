@@ -7,6 +7,9 @@ import DropOverlay from "./components/DropOverlay";
 import ThreeCanvas from "./components/ThreeCanvas";
 import ThreeEnvironment from "./components/ThreeEnvironment";
 import ThreeObjectMesh from "./components/ThreeObjectMesh";
+import AnnotationCanvas, {
+  AnnotationCanvasHandle,
+} from "./components/AnnotationCanvas";
 import {
   OcctImportJSResult,
   OcctImportMesh,
@@ -26,46 +29,90 @@ function isStepFile(file: File) {
 function App() {
   const [objects, setObjects] = useState<LoadedObject[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileBlob, setFileBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [status, setStatus] = useState("Ready");
+  const [annotating, setAnnotating] = useState(false);
+  const [annotationColor, setAnnotationColor] = useState("#ef4444");
+  const [annotationWidth, setAnnotationWidth] = useState(3);
 
   const dragCounter = useRef(0);
   const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const annotationRef = useRef<AnnotationCanvasHandle>(null);
 
-  const handleLoadFromFile = useCallback(async (file: File) => {
-    setFileName(file.name);
-    setLoading(true);
-    setStatus("Parsing geometry…");
-    try {
-      // @ts-ignore - global injected by occt-import-js.js in index.html
-      const occt = await occtimportjs();
-      const buffer = await file.arrayBuffer();
-      const fileBuffer = new Uint8Array(buffer);
-      const result: OcctImportJSResult = occt.ReadStepFile(fileBuffer, null);
-      if (!result.success) {
-        throw new Error("Failed to parse STEP file");
+  const handleLoadFromSource = useCallback(
+    async (source: File | Blob, name: string) => {
+      setFileName(name);
+      setFileBlob(source);
+      setLoading(true);
+      setStatus("Parsing geometry…");
+      try {
+        // @ts-ignore - global injected by occt-import-js.js in index.html
+        const occt = await occtimportjs();
+        const buffer = await source.arrayBuffer();
+        const fileBuffer = new Uint8Array(buffer);
+        const result: OcctImportJSResult = occt.ReadStepFile(fileBuffer, null);
+        if (!result.success) {
+          throw new Error("Failed to parse STEP file");
+        }
+        const DEFAULT_COLOR: [number, number, number] = [0.88, 0.9, 0.92];
+        const isOcctDefaultGray = (c?: number[]) =>
+          !c ||
+          (Math.abs(c[0] - c[1]) < 0.01 &&
+            Math.abs(c[1] - c[2]) < 0.01 &&
+            c[0] < 0.85);
+        const next = result.meshes.map((mesh, index) => ({
+          id: index,
+          color: (isOcctDefaultGray(mesh.color)
+            ? DEFAULT_COLOR
+            : mesh.color) as [number, number, number],
+          mesh,
+        }));
+        setObjects(next);
+        setStatus("Ready");
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to load file");
+        setFileName(null);
+        setFileBlob(null);
+      } finally {
+        setLoading(false);
       }
-      const next = result.meshes.map((mesh, index) => ({
-        id: index,
-        color: (mesh.color ?? [1, 1, 1]) as [number, number, number],
-        mesh,
-      }));
-      setObjects(next);
-      setStatus("Ready");
-    } catch (err) {
-      console.error(err);
-      setStatus("Failed to load file");
-      setFileName(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
+
+  const handleLoadFromFile = useCallback(
+    (file: File) => handleLoadFromSource(file, file.name),
+    [handleLoadFromSource]
+  );
 
   const handleReset = useCallback(() => {
     setObjects([]);
     setFileName(null);
+    setFileBlob(null);
     setStatus("Ready");
+    setAnnotating(false);
+  }, []);
+
+  const handleDownload = useCallback(() => {
+    if (!fileBlob || !fileName) return;
+    const url = URL.createObjectURL(fileBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [fileBlob, fileName]);
+
+  const handleToggleAnnotate = useCallback(() => {
+    setAnnotating((prev) => {
+      if (prev) annotationRef.current?.clear();
+      return !prev;
+    });
   }, []);
 
   const handleOpenClick = useCallback(() => {
@@ -87,6 +134,54 @@ function App() {
     },
     [handleLoadFromFile]
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const exampleName = params.get("example");
+    if (!exampleName) return;
+    if (!/^[\w.\-]+\.(step|stp)$/i.test(exampleName)) {
+      console.warn(`Invalid example name: ${exampleName}`);
+      setStatus("Invalid example name in URL");
+      return;
+    }
+    const url = `/examples/${exampleName}`;
+    setStatus(`Loading example ${exampleName}…`);
+    fetch(url)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Example not found (HTTP ${res.status}): ${url}`);
+        }
+        const contentType = res.headers.get("content-type") ?? "";
+        const blob = await res.blob();
+        // Vite's dev server falls back to index.html for unknown paths, so a
+        // 200 OK here can still be HTML. Detect that and fail loudly.
+        if (contentType.includes("text/html")) {
+          throw new Error(
+            `Example file missing at ${url} (server returned HTML fallback). ` +
+              `Place "${exampleName}" in public/examples/.`
+          );
+        }
+        const head = await blob.slice(0, 16).text();
+        const looksLikeStep = /^(ISO-10303-21|\s*\/\*|HEADER)/i.test(head);
+        if (!looksLikeStep) {
+          throw new Error(
+            `File at ${url} does not look like a STEP file (got: ${JSON.stringify(
+              head.slice(0, 12)
+            )}).`
+          );
+        }
+        return blob;
+      })
+      .then((blob) => handleLoadFromSource(blob, exampleName))
+      .catch((err) => {
+        console.error(err);
+        setStatus(
+          err instanceof Error
+            ? err.message
+            : `Could not load example: ${exampleName}`
+        );
+      });
+  }, [handleLoadFromSource]);
 
   useEffect(() => {
     const onDragEnter = (e: DragEvent) => {
@@ -143,11 +238,15 @@ function App() {
         hasModel={hasModel}
         onOpenClick={handleOpenClick}
         onResetClick={handleReset}
+        canDownload={!!fileBlob}
+        onDownloadClick={handleDownload}
+        annotating={annotating}
+        onAnnotateClick={handleToggleAnnotate}
       />
 
       <main className="viewer-grid relative overflow-hidden">
         {hasModel && (
-          <ThreeCanvas>
+          <ThreeCanvas controlsEnabled={!annotating}>
             <ThreeEnvironment />
             {objects.map((object) => (
               <ThreeObjectMesh
@@ -157,6 +256,44 @@ function App() {
               />
             ))}
           </ThreeCanvas>
+        )}
+
+        {hasModel && annotating && (
+          <>
+            <AnnotationCanvas
+              ref={annotationRef}
+              color={annotationColor}
+              lineWidth={annotationWidth}
+            />
+            <div className="absolute right-4 top-4 z-40 flex items-center gap-2 rounded-lg border border-border bg-background/90 px-2 py-1.5 shadow-sm backdrop-blur">
+              <input
+                type="color"
+                value={annotationColor}
+                onChange={(e) => setAnnotationColor(e.target.value)}
+                className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                title="Stroke color"
+              />
+              <input
+                type="range"
+                min={1}
+                max={20}
+                value={annotationWidth}
+                onChange={(e) => setAnnotationWidth(Number(e.target.value))}
+                className="w-24 accent-[var(--theme-primary)]"
+                title="Stroke width"
+              />
+              <span className="w-5 text-center text-xs text-muted">
+                {annotationWidth}
+              </span>
+              <button
+                type="button"
+                onClick={() => annotationRef.current?.clear()}
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-[var(--theme-gray-100)]"
+              >
+                Clear
+              </button>
+            </div>
+          </>
         )}
 
         {!hasModel && !loading && (

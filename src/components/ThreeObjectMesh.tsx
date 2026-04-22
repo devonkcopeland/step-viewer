@@ -45,8 +45,8 @@ function ThreeObjectMesh({
     <mesh ref={meshRef}>
       <meshStandardMaterial
         color={colorString}
-        metalness={0.1}
-        roughness={0.6}
+        metalness={0.05}
+        roughness={0.45}
       />
       {geometryLoaded && (
         <Edges
