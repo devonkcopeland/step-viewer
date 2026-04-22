@@ -1,153 +1,164 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import LoaderOverlay from "./components/LoaderOverlay";
-import EmptyState from "./components/EmptyState";
-import DropOverlay from "./components/DropOverlay";
-import ThreeCanvas from "./components/ThreeCanvas";
-import ThreeEnvironment from "./components/ThreeEnvironment";
-import ThreeObjectMesh from "./components/ThreeObjectMesh";
+import { useEffect, useRef, useState } from "react";
+import FileUploadBox from "./components/FileUploadBox";
 import {
   OcctImportJSResult,
   OcctImportMesh,
 } from "../public/occt-import-js/types";
+import ThreeCanvas from "./components/ThreeCanvas";
+import ThreeObjectMesh from "./components/ThreeObjectMesh";
+import ThreeEnvironment from "./components/ThreeEnvironment";
+import AnnotationCanvas, {
+  AnnotationCanvasHandle,
+} from "./components/AnnotationCanvas";
 
-type LoadedObject = {
-  id: number;
-  color: [number, number, number];
-  mesh: OcctImportMesh;
+const EXAMPLES: Record<string, string> = {
+  "intern-dfm-part": "/examples/intern-dfm-part-23892389231.step",
+  "scanner-holder": "/examples/scanner-holder-9238924898423.step",
 };
 
-function isStepFile(file: File) {
-  const n = file.name.toLowerCase();
-  return n.endsWith(".step") || n.endsWith(".stp");
-}
-
 function App() {
-  const [objects, setObjects] = useState<LoadedObject[]>([]);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
-  const [status, setStatus] = useState("Ready");
+  const [objects, setObjects] = useState<
+    {
+      id: number;
+      color: [number, number, number];
+      mesh: OcctImportMesh;
+    }[]
+  >([]);
+  const [currentFile, setCurrentFile] = useState<{
+    name: string;
+    blob: Blob;
+  } | null>(null);
+  const [annotating, setAnnotating] = useState(false);
+  const [annotationColor, setAnnotationColor] = useState("#ef4444");
+  const [annotationWidth, setAnnotationWidth] = useState(3);
+  const annotationRef = useRef<AnnotationCanvasHandle>(null);
 
-  const dragCounter = useRef(0);
-  const hiddenInputRef = useRef<HTMLInputElement>(null);
+  const handleLoadFromFile = async (file: File | Blob, name?: string) => {
+    const fileName =
+      name ?? (file instanceof File ? file.name : "model.step");
+    setCurrentFile({ name: fileName, blob: file });
+    // @ts-ignore - typecript not recognizing import in index.html
+    occtimportjs().then(async (occt) => {
+      let buffer = await file.arrayBuffer();
+      let fileBuffer = new Uint8Array(buffer);
+      let result: OcctImportJSResult = occt.ReadStepFile(fileBuffer, null);
+      const objects = result.meshes.map((mesh, index) => {
+        return {
+          id: index,
+          color: mesh.color ?? [1, 1, 1],
+          mesh: mesh,
+        };
+      });
+      setObjects(objects);
+    });
+  };
 
-  const handleLoadFromFile = useCallback(async (file: File) => {
-    setFileName(file.name);
-    setLoading(true);
-    setStatus("Parsing geometry…");
-    try {
-      // @ts-ignore - global injected by occt-import-js.js in index.html
-      const occt = await occtimportjs();
-      const buffer = await file.arrayBuffer();
-      const fileBuffer = new Uint8Array(buffer);
-      const result: OcctImportJSResult = occt.ReadStepFile(fileBuffer, null);
-      if (!result.success) {
-        throw new Error("Failed to parse STEP file");
-      }
-      const next = result.meshes.map((mesh, index) => ({
-        id: index,
-        color: (mesh.color ?? [1, 1, 1]) as [number, number, number],
-        mesh,
-      }));
-      setObjects(next);
-      setStatus("Ready");
-    } catch (err) {
-      console.error(err);
-      setStatus("Failed to load file");
-      setFileName(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const handleDownload = () => {
+    if (!currentFile) return;
+    const url = URL.createObjectURL(currentFile.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = currentFile.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
-  const handleReset = useCallback(() => {
+  const handleReset = () => {
     setObjects([]);
-    setFileName(null);
-    setStatus("Ready");
-  }, []);
+    setCurrentFile(null);
+    setAnnotating(false);
+  };
 
-  const handleOpenClick = useCallback(() => {
-    hiddenInputRef.current?.click();
-  }, []);
-
-  const handleHiddenInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        if (!isStepFile(file)) {
-          setStatus("Only .step / .stp files are supported");
-          e.target.value = "";
-          return;
-        }
-        void handleLoadFromFile(file);
-      }
-      e.target.value = "";
-    },
-    [handleLoadFromFile]
-  );
+  const toggleAnnotating = () => {
+    setAnnotating((prev) => {
+      if (prev) annotationRef.current?.clear();
+      return !prev;
+    });
+  };
 
   useEffect(() => {
-    const onDragEnter = (e: DragEvent) => {
-      if (!e.dataTransfer) return;
-      const hasFiles = Array.from(e.dataTransfer.types).includes("Files");
-      if (!hasFiles) return;
-      e.preventDefault();
-      dragCounter.current += 1;
-      setDragActive(true);
-    };
-    const onDragOver = (e: DragEvent) => {
-      if (!e.dataTransfer) return;
-      const hasFiles = Array.from(e.dataTransfer.types).includes("Files");
-      if (!hasFiles) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "copy";
-    };
-    const onDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      dragCounter.current = Math.max(0, dragCounter.current - 1);
-      if (dragCounter.current === 0) setDragActive(false);
-    };
-    const onDrop = (e: DragEvent) => {
-      e.preventDefault();
-      dragCounter.current = 0;
-      setDragActive(false);
-      const files = e.dataTransfer?.files;
-      if (!files || files.length === 0) return;
-      const file = files[0];
-      if (!isStepFile(file)) {
-        setStatus("Only .step / .stp files are supported");
-        return;
-      }
-      void handleLoadFromFile(file);
-    };
-
-    window.addEventListener("dragenter", onDragEnter);
-    window.addEventListener("dragover", onDragOver);
-    window.addEventListener("dragleave", onDragLeave);
-    window.addEventListener("drop", onDrop);
-    return () => {
-      window.removeEventListener("dragenter", onDragEnter);
-      window.removeEventListener("dragover", onDragOver);
-      window.removeEventListener("dragleave", onDragLeave);
-      window.removeEventListener("drop", onDrop);
-    };
-  }, [handleLoadFromFile]);
-
-  const hasModel = objects.length > 0;
+    const params = new URLSearchParams(window.location.search);
+    const exampleName = params.get("example");
+    if (!exampleName) return;
+    const examplePath = EXAMPLES[exampleName];
+    if (!examplePath) {
+      console.warn(`Unknown example: ${exampleName}`);
+      return;
+    }
+    fetch(examplePath)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to fetch ${examplePath}`);
+        return res.blob();
+      })
+      .then((blob) =>
+        handleLoadFromFile(blob, examplePath.split("/").pop())
+      )
+      .catch((err) => console.error(err));
+  }, []);
 
   return (
-    <div className="grid h-screen w-screen grid-rows-[auto_1fr_auto] bg-background font-sans text-foreground">
-      <Header
-        hasModel={hasModel}
-        onOpenClick={handleOpenClick}
-        onResetClick={handleReset}
-      />
-
-      <main className="viewer-grid relative overflow-hidden">
-        {hasModel && (
-          <ThreeCanvas>
+    <div className="h-screen w-screen relative">
+      {objects.length === 0 ? (
+        <FileUploadBox onFileLoad={handleLoadFromFile} />
+      ) : (
+        <>
+          <div className="absolute z-50 top-2 right-2 flex gap-2 items-center">
+            {annotating && (
+              <div className="flex items-center gap-2 bg-white/90 px-2 py-1 rounded-md shadow">
+                <input
+                  type="color"
+                  value={annotationColor}
+                  onChange={(e) => setAnnotationColor(e.target.value)}
+                  className="h-7 w-7 cursor-pointer border-0 bg-transparent p-0"
+                  title="Color"
+                />
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  value={annotationWidth}
+                  onChange={(e) =>
+                    setAnnotationWidth(Number(e.target.value))
+                  }
+                  className="w-24"
+                  title="Line width"
+                />
+                <button
+                  onClick={() => annotationRef.current?.clear()}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded-md text-sm"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            <button
+              onClick={toggleAnnotating}
+              className={`p-2 rounded-md text-white ${
+                annotating
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-gray-600 hover:bg-gray-700"
+              }`}
+            >
+              {annotating ? "Done" : "Annotate"}
+            </button>
+            {currentFile && (
+              <button
+                onClick={handleDownload}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
+              >
+                Download
+              </button>
+            )}
+            <button
+              onClick={handleReset}
+              className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md"
+            >
+              Reset
+            </button>
+          </div>
+          <ThreeCanvas controlsEnabled={!annotating}>
             <ThreeEnvironment />
             {objects.map((object) => (
               <ThreeObjectMesh
@@ -157,31 +168,15 @@ function App() {
               />
             ))}
           </ThreeCanvas>
-        )}
-
-        {!hasModel && !loading && (
-          <EmptyState onFileSelected={handleLoadFromFile} />
-        )}
-
-        {fileName && hasModel && (
-          <div className="pointer-events-none absolute bottom-4 left-4 z-10 inline-flex max-w-[60%] items-center gap-2 truncate rounded-lg border border-border bg-background/80 px-3 py-1.5 text-xs text-foreground shadow-sm backdrop-blur">
-            <span className="truncate font-medium">{fileName}</span>
-          </div>
-        )}
-
-        <DropOverlay visible={dragActive} />
-        <LoaderOverlay visible={loading} />
-
-        <input
-          ref={hiddenInputRef}
-          type="file"
-          accept=".step,.stp,.STEP,.STP"
-          className="hidden"
-          onChange={handleHiddenInputChange}
-        />
-      </main>
-
-      <Footer status={status} />
+          {annotating && (
+            <AnnotationCanvas
+              ref={annotationRef}
+              color={annotationColor}
+              lineWidth={annotationWidth}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }
