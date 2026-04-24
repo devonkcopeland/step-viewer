@@ -54,6 +54,13 @@ const ThreeCanvas = ({
             far={1000}
           />
           {/* TrackballControls: unrestricted free-orbit (no up-vector lockout) */}
+          {/* maxDistance works around a bug in three-stdlib's TrackballControls
+              where ortho zoom-out is silently cancelled whenever
+              `object.zoom < maxDistance * maxDistance`. With the default
+              maxDistance=Infinity, that's always true, so zoom-out never
+              applies. Setting a tiny maxDistance makes the guard always false,
+              letting zoom-out through. We don't use a perspective camera, so
+              the other effect of this setting is irrelevant. */}
           <TrackballControls
             key={controlsKey}
             makeDefault
@@ -61,8 +68,7 @@ const ThreeCanvas = ({
             zoomSpeed={1.8}
             panSpeed={0.8}
             staticMoving
-            minZoom={0.001}
-            maxZoom={10000}
+            maxDistance={0}
             noRotate={!controlsEnabled}
             noPan={!controlsEnabled}
             noZoom={!controlsEnabled}
