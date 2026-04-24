@@ -42,33 +42,47 @@ function ThreeObjectMesh({
 
   return (
     <>
-      <mesh visible={visible}>
+      <mesh
+        visible={visible}
+        // Explicit renderOrder so transparent bodies draw after opaque ones
+        // even if three.js's centroid-based sort picks a different order.
+        renderOrder={isTransparent ? 1 : 0}
+      >
         <primitive attach="geometry" object={geometry} />
+        {/*
+         * `key` is the subtle trick here: toggling `transparent` on an
+         * existing meshStandardMaterial doesn't always re-enter the
+         * renderer's transparent pass (three.js caches pipeline state),
+         * so opacity changes after the initial render can silently
+         * render as fully-opaque. Recreating the material when
+         * transparency toggles guarantees we enter the right path.
+         *
+         * `depthWrite: false` while transparent prevents the mesh from
+         * writing to the depth buffer, so anything already rendered
+         * (opaque bodies behind) shows through cleanly. Depth *test* is
+         * still on, so the transparent body still gets occluded where
+         * something opaque is in front of it.
+         */}
         <meshStandardMaterial
+          key={isTransparent ? "blend" : "solid"}
           color={colorString}
           metalness={0.05}
           roughness={0.45}
           transparent={isTransparent}
           opacity={opacity}
-          // When transparent, depthWrite=false avoids self-sorting artifacts
-          // where back faces of one part occlude front faces of another.
           depthWrite={!isTransparent}
-          // Push the shaded surface a touch further from the camera so the
-          // edge line renders cleanly on top without z-fighting.
           polygonOffset
           polygonOffsetFactor={1}
           polygonOffsetUnits={1}
         />
       </mesh>
       {edges && visible && (
-        <lineSegments>
+        <lineSegments renderOrder={isTransparent ? 2 : 0}>
           <primitive attach="geometry" object={edges} />
           <lineBasicMaterial
             color={visual.edgeColor}
             transparent={isTransparent}
             opacity={opacity}
-            // Edges should always draw on top of their own surface; test but
-            // don't write so we still occlude against other geometry.
             depthWrite={false}
           />
         </lineSegments>

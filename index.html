@@ -8,7 +8,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Fonts are self-hosted via @fontsource (see src/main.tsx). No
          third-party font CDN is contacted at runtime. -->
-    <script type="text/javascript" src="/occt-import-js/occt-import-js.js"></script>
+    <!--
+      occt-import-js is NOT loaded here on purpose: it's ~31 KiB of
+      render-blocking JS that's only needed once the user actually opens a
+      STEP file. We lazy-inject it from `src/lib/occtLoader.ts` and warm it
+      up at idle time. Keeping it off the critical path saves ~80 ms of LCP.
+    -->
     <title>STEP Viewer — by finalrev</title>
     <!--
       Apply the persisted theme before React mounts to avoid a flash of the

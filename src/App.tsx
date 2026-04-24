@@ -31,6 +31,7 @@ import {
   OcctImportJSResult,
   OcctImportMesh,
 } from "../public/occt-import-js/types";
+import { loadOcct, warmOcct } from "./lib/occtLoader";
 // Use the `/react` subpath, not `/next` — we're a Vite SPA, not Next.js.
 import { Analytics } from "@vercel/analytics/react";
 
@@ -225,8 +226,7 @@ function App() {
       setLoading(true);
       setStatus("Parsing geometry…");
       try {
-        // @ts-ignore - global injected by occt-import-js.js in index.html
-        const occt = await occtimportjs();
+        const occt = await loadOcct();
         const buffer = await source.arrayBuffer();
         const fileBuffer = new Uint8Array(buffer);
         const result: OcctImportJSResult = occt.ReadStepFile(fileBuffer, null);
@@ -389,6 +389,19 @@ function App() {
     const exampleName = params.get("example");
     if (exampleName) handleLoadExample(exampleName);
   }, [handleLoadExample]);
+
+  // Kick off the occt-import-js download once the page is idle. It's excluded
+  // from the HTML critical path (see index.html) so LCP stays clean, but most
+  // visitors will load a STEP file within seconds — prefetching during idle
+  // time means the first parse has effectively zero network wait.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ric =
+      (window as Window & {
+        requestIdleCallback?: (cb: () => void) => number;
+      }).requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1));
+    ric(() => warmOcct());
+  }, []);
 
   useEffect(() => {
     const onDragEnter = (e: DragEvent) => {
