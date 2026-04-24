@@ -14,6 +14,7 @@ import {
   useState,
 } from "react";
 import * as THREE from "three";
+import type { TrackballControls as TrackballControlsImpl } from "three-stdlib";
 import {
   DEFAULT_NAVIGATION_MODE,
   getNavigationPreset,
@@ -24,7 +25,6 @@ import {
   matchAction,
   modifierFromEvent,
   mouseButtonsForAction,
-  TrackballMouseButtons,
 } from "../lib/navigationBindings";
 import { useCoarsePointer } from "../lib/pointer";
 
@@ -65,12 +65,6 @@ import { useCoarsePointer } from "../lib/pointer";
 
 const BOUNDS_MAX_DURATION_S = 1;
 const BOUNDS_SETTLE_MS = BOUNDS_MAX_DURATION_S * 1000 + 50;
-
-type TrackballControlsImpl = {
-  maxDistance: number;
-  mouseButtons: TrackballMouseButtons;
-  update: () => void;
-};
 
 const ThreeCanvas = ({
   children,
@@ -311,7 +305,13 @@ function ModifierAwareBindings({
 
       const modifier = modifierFromEvent(pe);
       const action = matchAction(presetRef.current.bindings, button, modifier);
-      controls.mouseButtons = mouseButtonsForAction(pe.button, action);
+      // `mouseButtons` typing uses THREE.MOUSE at the type level; at runtime
+      // it's plain numbers and our helper emits -1 to disable a slot, which
+      // isn't representable in the enum. Cast through `unknown`.
+      controls.mouseButtons = mouseButtonsForAction(
+        pe.button,
+        action
+      ) as unknown as typeof controls.mouseButtons;
     };
 
     // Right-click context menu would otherwise pop up during an RMB-drag
