@@ -53,11 +53,11 @@ export const THEMES: ThemeDefinition[] = [
       dark: ["#141414", "#0a0a0a", "#fafafa", "#60a5fa"],
     },
     light: {
-      edgeColor: "#0a0a0a",
+      edgeColor: "#737373",
       browserChrome: "#ffffff",
     },
     dark: {
-      edgeColor: "#d4d4d4",
+      edgeColor: "#8a8a8a",
       browserChrome: "#141414",
     },
   },
@@ -71,29 +71,32 @@ export const THEMES: ThemeDefinition[] = [
       dark: ["#1a1a1a", "#111111", "#f5f5f5", "#60a5fa"],
     },
     light: {
-      edgeColor: "#1a1a1a",
+      edgeColor: "#737373",
       browserChrome: "#ffffff",
     },
     dark: {
-      edgeColor: "#e5e5e5",
+      edgeColor: "#8a8a8a",
       browserChrome: "#1a1a1a",
     },
   },
   {
     id: "terminal",
     label: "Terminal",
-    tagline: "Phosphor green on deep black. Monospaced.",
+    tagline: "Phosphor headers on deep black. Monospaced.",
     defaultMode: "dark",
     previewSwatches: {
       light: ["#f4f2e8", "#e8e4d2", "#1a3d1a", "#b8600e"],
       dark: ["#0d1117", "#010409", "#39d353", "#ffa657"],
     },
     light: {
-      edgeColor: "#1a3d1a",
+      edgeColor: "#6b7f5a",
       browserChrome: "#f4f2e8",
     },
+    // Muted neutral, NOT phosphor green — green would fight the model and
+    // turn every silhouette into a chartreuse outline. The green energy
+    // lives in the header/title text instead (see index.css).
     dark: {
-      edgeColor: "#39d353",
+      edgeColor: "#8b949e",
       browserChrome: "#0d1117",
     },
   },
@@ -107,11 +110,11 @@ export const THEMES: ThemeDefinition[] = [
       dark: ["#0d0d0d", "#ece6d3", "#ff4d4d", "#ff4d4d"],
     },
     light: {
-      edgeColor: "#0a0a0a",
+      edgeColor: "#555555",
       browserChrome: "#ece6d3",
     },
     dark: {
-      edgeColor: "#ece6d3",
+      edgeColor: "#8b8575",
       browserChrome: "#0d0d0d",
     },
   },

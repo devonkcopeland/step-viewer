@@ -30,7 +30,8 @@ import {
   OcctImportJSResult,
   OcctImportMesh,
 } from "../public/occt-import-js/types";
-import { Analytics } from "@vercel/analytics/next"
+// Use the `/react` subpath, not `/next` — we're a Vite SPA, not Next.js.
+import { Analytics } from "@vercel/analytics/react";
 
 const NAV_STORAGE_KEY = "step-viewer/navigation-mode";
 

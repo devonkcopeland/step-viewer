@@ -347,6 +347,23 @@
     0 0 14px -2px color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
+/* Terminal paints headers with its primary color — this is where the
+ * phosphor-green energy lives now that mesh edges stay neutral. The brand
+ * block (first child of <header>) picks it up + both levels of section
+ * heading (<h1>, <h2>). Dark mode gets a soft glow; light mode uses the
+ * deep-green primary without the bloom. The `.text-muted` on the
+ * "by finalREV" link keeps it subtle so the brand + title are the loud bit. */
+[data-theme="terminal"] header > :first-child,
+[data-theme="terminal"] h1,
+[data-theme="terminal"] h2 {
+  color: var(--primary);
+}
+[data-theme="terminal"][data-mode="dark"] header > :first-child,
+[data-theme="terminal"][data-mode="dark"] h1,
+[data-theme="terminal"][data-mode="dark"] h2 {
+  text-shadow: 0 0 10px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
 /* ---------- Status dot ---------- */
 .status-dot {
   width: 8px;
