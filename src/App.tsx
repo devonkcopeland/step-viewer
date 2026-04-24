@@ -30,6 +30,7 @@ import {
   OcctImportJSResult,
   OcctImportMesh,
 } from "../public/occt-import-js/types";
+import { Analytics } from "@vercel/analytics/next"
 
 const NAV_STORAGE_KEY = "step-viewer/navigation-mode";
 
@@ -409,6 +410,7 @@ function App() {
 
   return (
     <div className="grid h-screen w-screen grid-rows-[auto_1fr_auto] bg-background font-sans text-foreground">
+      <Analytics />
       <Header
         hasModel={hasModel}
         onResetClick={handleReset}
