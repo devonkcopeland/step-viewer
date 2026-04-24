@@ -6,7 +6,10 @@ import {
   NavigationPreset,
   SimilarApp,
 } from "../lib/navigationModes";
-import MouseDiagram, { ACTION_COLORS } from "./MouseDiagram";
+import MouseDiagram, {
+  ACTION_COLORS,
+  diagramPropsFromBindings,
+} from "./MouseDiagram";
 
 type Props = {
   open: boolean;
@@ -110,8 +113,10 @@ function NavigationModeDialog({
 
         <div className="flex items-center gap-4 border-t border-border bg-[var(--theme-gray-50)] px-5 py-3 text-xs text-muted">
           <div className="flex-1">
-            Modifier keys aren't wired up — hover{" "}
-            <InlineInfoIcon /> on a card for quirks.
+            Modifier keys (<kbd className="rounded bg-background px-1 font-mono text-[10px]">⇧</kbd>{" "}
+            <kbd className="rounded bg-background px-1 font-mono text-[10px]">⌃</kbd>{" "}
+            <kbd className="rounded bg-background px-1 font-mono text-[10px]">⌥</kbd>) are fully supported — hold
+            them while dragging to trigger the corresponding action.
           </div>
           {firstVisit && (
             <button
@@ -155,13 +160,7 @@ function PresetCard({
       )}
 
       <div className="shrink-0">
-        <MouseDiagram
-          size={64}
-          left={preset.buttons.left}
-          middle={preset.buttons.middle}
-          right={preset.buttons.right}
-          wheel={preset.buttons.wheel}
-        />
+        <MouseDiagram size={64} {...diagramPropsFromBindings(preset.bindings)} />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -183,22 +182,9 @@ function PresetCard({
 
 function PresetDetails({ preset }: { preset: NavigationPreset }) {
   return (
-    <div className="space-y-2">
-      <p className="text-[11px] leading-relaxed text-foreground/90">
-        {preset.tagline}
-      </p>
-      <dl className="space-y-0.5 text-[11px] text-foreground">
-        <BindingRow button="LMB" action={preset.buttons.left} />
-        <BindingRow button="MMB" action={preset.buttons.middle} />
-        <BindingRow button="RMB" action={preset.buttons.right} />
-        <BindingRow button="Wheel" action={preset.buttons.wheel} />
-      </dl>
-      {preset.notes && (
-        <p className="border-t border-white/10 pt-2 text-[11px] leading-relaxed text-foreground/75">
-          {preset.notes}
-        </p>
-      )}
-    </div>
+    <p className="text-[11px] leading-relaxed text-white/90">
+      {preset.tagline}
+    </p>
   );
 }
 
@@ -206,17 +192,17 @@ function AppChip({ app }: { app: SimilarApp }) {
   const [failed, setFailed] = useState(false);
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
+      className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1 text-[12px] font-medium text-foreground"
       title={app.domain}
     >
       {!failed ? (
         <img
           src={faviconUrl(app.domain, 64)}
           alt=""
-          width={14}
-          height={14}
+          width={18}
+          height={18}
           loading="lazy"
-          className="h-3.5 w-3.5 rounded-sm"
+          className="h-[18px] w-[18px] rounded-sm"
           onError={() => setFailed(true)}
         />
       ) : (
@@ -224,34 +210,6 @@ function AppChip({ app }: { app: SimilarApp }) {
       )}
       {app.name}
     </span>
-  );
-}
-
-function BindingRow({
-  button,
-  action,
-}: {
-  button: string;
-  action: "rotate" | "pan" | "zoom" | null;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="inline-flex w-10 justify-center rounded bg-white/10 px-1 py-0.5 font-mono text-[10px] text-foreground/80">
-        {button}
-      </span>
-      {action ? (
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ background: ACTION_COLORS[action] }}
-            aria-hidden="true"
-          />
-          <span className="font-medium capitalize">{action}</span>
-        </span>
-      ) : (
-        <span className="text-foreground/60">—</span>
-      )}
-    </div>
   );
 }
 
@@ -326,19 +284,11 @@ function Legend() {
   );
 }
 
-function InlineInfoIcon() {
-  return (
-    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-border bg-background text-[9px] font-semibold text-muted align-[-1px]">
-      i
-    </span>
-  );
-}
-
 function GlobeIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

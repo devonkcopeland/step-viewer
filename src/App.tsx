@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import LoaderOverlay from "./components/LoaderOverlay";
@@ -24,7 +25,6 @@ import {
   buildAssemblyTree,
   buildMeshOwnership,
   effectiveMeshStyle,
-  isMeaningfulAssembly,
 } from "./lib/assemblyTree";
 import {
   OcctImportJSResult,
@@ -62,7 +62,38 @@ type LoadedObject = {
   id: number;
   color: [number, number, number];
   mesh: OcctImportMesh;
+  // Pre-built on load so <Bounds> always observes real geometry with a valid
+  // bounding box at first mount. Building it later (inside the mesh component
+  // via a layout effect) races Bounds's own fit pass and makes some parts land
+  // offscreen on first load — which is exactly the finalrev repo's approach.
+  geometry: THREE.BufferGeometry;
 };
+
+function buildGeometry(mesh: OcctImportMesh): THREE.BufferGeometry {
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      Array.from(mesh.attributes.position.array),
+      3
+    )
+  );
+  if (mesh.attributes.normal) {
+    geom.setAttribute(
+      "normal",
+      new THREE.Float32BufferAttribute(
+        Array.from(mesh.attributes.normal.array),
+        3
+      )
+    );
+  }
+  if (mesh.index) {
+    geom.setIndex(Array.from(mesh.index.array));
+  }
+  geom.computeBoundingBox();
+  geom.computeBoundingSphere();
+  return geom;
+}
 
 function isStepFile(file: File) {
   const n = file.name.toLowerCase();
@@ -120,14 +151,20 @@ function App() {
           (Math.abs(c[0] - c[1]) < 0.01 &&
             Math.abs(c[1] - c[2]) < 0.01 &&
             c[0] < 0.85);
-        const next = result.meshes.map((mesh, index) => ({
+        const next: LoadedObject[] = result.meshes.map((mesh, index) => ({
           id: index,
           color: (isOcctDefaultGray(mesh.color)
             ? DEFAULT_COLOR
             : mesh.color) as [number, number, number],
           mesh,
+          geometry: buildGeometry(mesh),
         }));
-        setObjects(next);
+        // Dispose previous geometries to release GPU/CPU memory when loading a
+        // second file in the same session.
+        setObjects((prev) => {
+          for (const obj of prev) obj.geometry.dispose();
+          return next;
+        });
         setAssemblyTree(buildAssemblyTree(result, name));
         setNodeOverrides({});
         setStatus("Ready");
@@ -151,7 +188,10 @@ function App() {
   );
 
   const handleReset = useCallback(() => {
-    setObjects([]);
+    setObjects((prev) => {
+      for (const obj of prev) obj.geometry.dispose();
+      return [];
+    });
     setAssemblyTree(null);
     setNodeOverrides({});
     setFileName(null);
@@ -177,10 +217,6 @@ function App() {
       if (prev) annotationRef.current?.clear();
       return !prev;
     });
-  }, []);
-
-  const handleOpenClick = useCallback(() => {
-    hiddenInputRef.current?.click();
   }, []);
 
   const handleHiddenInputChange = useCallback(
@@ -222,7 +258,7 @@ function App() {
         if (contentType.includes("text/html")) {
           throw new Error(
             `Example file missing at ${url} (server returned HTML fallback). ` +
-              `Place "${exampleName}" in public/examples/.`
+            `Place "${exampleName}" in public/examples/.`
           );
         }
         const head = await blob.slice(0, 16).text();
@@ -360,13 +396,14 @@ function App() {
     []
   );
 
-  const showAssemblyPanel = !!assemblyTree && isMeaningfulAssembly(assemblyTree);
+  // The tree overlay is useful only when there are multiple bodies to manage;
+  // for a single-body file it's just visual clutter.
+  const showAssemblyPanel = !!assemblyTree && objects.length >= 2;
 
   return (
     <div className="grid h-screen w-screen grid-rows-[auto_1fr_auto] bg-background font-sans text-foreground">
       <Header
         hasModel={hasModel}
-        onOpenClick={handleOpenClick}
         onResetClick={handleReset}
         canDownload={!!fileBlob}
         onDownloadClick={handleDownload}
@@ -397,7 +434,7 @@ function App() {
             {renderObjects.map((object) => (
               <ThreeObjectMesh
                 key={object.id}
-                mesh={object.mesh}
+                geometry={object.geometry}
                 color={object.renderColor}
                 opacity={object.renderOpacity}
                 visible={object.renderVisible}

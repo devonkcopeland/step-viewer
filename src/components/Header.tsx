@@ -3,10 +3,10 @@ import {
   NAVIGATION_PRESETS,
   NavigationMode,
 } from "../lib/navigationModes";
+import { useCoarsePointer } from "../lib/pointer";
 
 type HeaderProps = {
   hasModel: boolean;
-  onOpenClick: () => void;
   onResetClick: () => void;
   canDownload?: boolean;
   onDownloadClick?: () => void;
@@ -16,9 +16,20 @@ type HeaderProps = {
   onOpenNavigationModes?: () => void;
 };
 
+/**
+ * Compact top bar.
+ *
+ * Design goals:
+ *   - Usable from ~320 px (small phone in portrait) up to desktop.
+ *   - Primary actions always visible — nothing gets hidden behind a menu.
+ *   - On small screens, secondary buttons collapse to icon-only (the labels
+ *     are redundant with the icons and cost ~60–80 px each).
+ *   - The nav-mode button is a desktop-only affordance: it configures
+ *     mouse-button bindings, which don't apply on touchscreens. Hide it
+ *     entirely on coarse-pointer devices.
+ */
 function Header({
   hasModel,
-  onOpenClick,
   onResetClick,
   canDownload,
   onDownloadClick,
@@ -27,96 +38,119 @@ function Header({
   navigationMode,
   onOpenNavigationModes,
 }: HeaderProps) {
+  const isTouch = useCoarsePointer();
   const activePreset =
     NAVIGATION_PRESETS.find((p) => p.id === navigationMode) ??
     NAVIGATION_PRESETS[0];
+
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3 sm:px-6">
-      <div className="flex items-center gap-2.5 text-foreground">
+    <header className="flex items-center justify-between gap-2 border-b border-border bg-background px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
+      <div className="flex min-w-0 items-center gap-2 text-foreground sm:gap-2.5">
         <Logo size={22} />
-        <span className="text-[15px] font-semibold tracking-tight">
-          STEP Viewer
+        <span className="truncate text-[14px] font-semibold tracking-tight sm:text-[15px]">
+          <span className="hidden min-[400px]:inline">STEP Viewer</span>
+          <span className="min-[400px]:hidden">STEP</span>
         </span>
-        <span className="mx-1 h-4 w-px bg-border" />
-        <a href="https://www.finalrev.com?utm_source=step-viewer" target="_blank" rel="noopener noreferrer" className="text-xs text-muted hover:text-foreground hover:underline">by finalREV</a>
+        <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
+        <a
+          href="https://www.finalrev.com?utm_source=step-viewer"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden text-xs text-muted hover:text-foreground hover:underline sm:inline"
+        >
+          by finalREV
+        </a>
       </div>
 
-      <div className="flex items-center gap-2">
-        {hasModel && onOpenNavigationModes && (
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {hasModel && !isTouch && onOpenNavigationModes && (
           <button
             type="button"
             onClick={onOpenNavigationModes}
-            title={activePreset.description}
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-[var(--theme-gray-100)]"
+            title={activePreset.tagline}
+            aria-label={`Navigation mode: ${activePreset.label}`}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-[var(--theme-gray-100)] sm:px-3"
           >
             <MouseIcon />
-            <span className="hidden sm:inline">
+            <span className="hidden sm:inline md:hidden">Nav</span>
+            <span className="hidden md:inline">
               <span className="text-muted">Nav:</span>{" "}
               <span className="font-semibold">{activePreset.label}</span>
             </span>
-            <span className="sm:hidden">Nav</span>
           </button>
         )}
+
         {hasModel && onAnnotateClick && (
-          <button
-            type="button"
+          <IconTextButton
             onClick={onAnnotateClick}
+            icon={<PencilIcon />}
+            label={annotating ? "Done" : "Annotate"}
             title={annotating ? "Exit annotation mode" : "Draw on the view"}
-            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${annotating
-              ? "border-transparent bg-primary text-primary-foreground hover:opacity-90"
-              : "border-border bg-background text-foreground hover:bg-[var(--theme-gray-100)]"
-              }`}
-          >
-            <PencilIcon />
-            {annotating ? "Done" : "Annotate"}
-          </button>
+            accent={annotating}
+          />
         )}
 
         {hasModel && canDownload && onDownloadClick && (
-          <button
-            type="button"
+          <IconTextButton
             onClick={onDownloadClick}
+            icon={<DownloadIcon />}
+            label="Download"
             title="Download the current STEP file"
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-[var(--theme-gray-100)]"
-          >
-            <DownloadIcon />
-            Download
-          </button>
+          />
         )}
 
         {hasModel && (
-          <button
-            type="button"
+          <IconTextButton
             onClick={onResetClick}
+            icon={<ResetIcon />}
+            label="Reset"
             title="Clear and return to upload"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            <ResetIcon />
-            Reset
-          </button>
+            primary
+          />
         )}
       </div>
     </header>
   );
 }
 
-function UploadIcon() {
+/**
+ * Button that shows an icon + label on desktop (sm+) and collapses to
+ * icon-only on phones. The `title` attribute doubles as a tooltip on desktop
+ * and the `aria-label` for screen readers when the text is hidden.
+ */
+function IconTextButton({
+  onClick,
+  icon,
+  label,
+  title,
+  primary,
+  accent,
+}: {
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  primary?: boolean;
+  accent?: boolean;
+}) {
+  const base =
+    "inline-flex items-center justify-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors sm:px-3";
+  const variant = primary
+    ? "bg-primary text-primary-foreground hover:opacity-90"
+    : accent
+      ? "border border-transparent bg-primary text-primary-foreground hover:opacity-90"
+      : "border border-border bg-background text-foreground hover:bg-[var(--theme-gray-100)]";
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={label}
+      className={`${base} ${variant}`}
     >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 

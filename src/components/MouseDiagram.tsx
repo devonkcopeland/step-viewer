@@ -1,24 +1,93 @@
-import { MouseAction } from "../lib/navigationModes";
+import {
+  NavigationAction,
+  NavigationBindings,
+} from "../lib/navigationModes";
+
+export type MouseAction = NavigationAction | null;
 
 type Props = {
   left?: MouseAction;
   middle?: MouseAction;
   right?: MouseAction;
   wheel?: MouseAction;
+  /** Small modifier glyphs rendered near the corresponding button
+   *  (e.g. "⇧", "⌃") when the binding requires a modifier. */
+  leftModifier?: string;
+  middleModifier?: string;
+  rightModifier?: string;
   size?: number;
 };
 
-const ACTION_COLORS: Record<Exclude<MouseAction, null>, string> = {
+const ACTION_COLORS: Record<NavigationAction, string> = {
   rotate: "#3b82f6", // blue
   pan: "#10b981", // emerald
   zoom: "#f59e0b", // amber
 };
 
-const ACTION_LETTERS: Record<Exclude<MouseAction, null>, string> = {
+const ACTION_LETTERS: Record<NavigationAction, string> = {
   rotate: "R",
   pan: "P",
   zoom: "Z",
 };
+
+/** Resolve a `NavigationBindings` object into the props the diagram consumes.
+ *  Wheel is always zoom for our presets. */
+export function diagramPropsFromBindings(bindings: NavigationBindings): {
+  left: MouseAction;
+  middle: MouseAction;
+  right: MouseAction;
+  wheel: MouseAction;
+  leftModifier: string;
+  middleModifier: string;
+  rightModifier: string;
+} {
+  const buttonMap: Record<"LMB" | "MMB" | "RMB", MouseAction> = {
+    LMB: null,
+    MMB: null,
+    RMB: null,
+  };
+  const modMap: Record<"LMB" | "MMB" | "RMB", string> = {
+    LMB: "",
+    MMB: "",
+    RMB: "",
+  };
+  const modGlyph: Record<string, string> = {
+    shift: "⇧",
+    ctrl: "⌃",
+    alt: "⌥",
+    none: "",
+  };
+  const pairs: Array<[NavigationAction, NavigationBindings[keyof NavigationBindings]]> =
+    [
+      ["rotate", bindings.rotate],
+      ["pan", bindings.pan],
+      ["zoom", bindings.zoom],
+    ];
+  // When multiple actions share the same button (e.g. SolidWorks MMB + Ctrl+MMB),
+  // show the *no-modifier* binding in the diagram so the visual matches the
+  // "click without thinking" behavior. Fall back to the first bound action.
+  for (const [action, binding] of pairs) {
+    if (!binding) continue;
+    const current = buttonMap[binding.button];
+    const currentMod = modMap[binding.button];
+    const shouldReplace =
+      current === null ||
+      (currentMod !== "" && binding.modifier === "none");
+    if (shouldReplace) {
+      buttonMap[binding.button] = action;
+      modMap[binding.button] = modGlyph[binding.modifier];
+    }
+  }
+  return {
+    left: buttonMap.LMB,
+    middle: buttonMap.MMB,
+    right: buttonMap.RMB,
+    wheel: "zoom",
+    leftModifier: modMap.LMB,
+    middleModifier: modMap.MMB,
+    rightModifier: modMap.RMB,
+  };
+}
 
 function fillFor(action: MouseAction): string {
   return action ? ACTION_COLORS[action] : "transparent";
@@ -38,6 +107,9 @@ function MouseDiagram({
   middle = null,
   right = null,
   wheel = null,
+  leftModifier = "",
+  middleModifier = "",
+  rightModifier = "",
   size = 96,
 }: Props) {
   const w = size;
@@ -178,6 +250,48 @@ function MouseDiagram({
           fontFamily="ui-sans-serif, system-ui, sans-serif"
         >
           {letterFor(middle)}
+        </text>
+      )}
+
+      {/* Modifier glyphs (shift/ctrl/alt) floating above the relevant
+          button — only shown when the binding requires a modifier. */}
+      {leftModifier && (
+        <text
+          x="23"
+          y="14"
+          textAnchor="middle"
+          fontSize="9"
+          fontWeight="700"
+          fill={fillFor(left)}
+          fontFamily="ui-sans-serif, system-ui, sans-serif"
+        >
+          {leftModifier}
+        </text>
+      )}
+      {rightModifier && (
+        <text
+          x="57"
+          y="14"
+          textAnchor="middle"
+          fontSize="9"
+          fontWeight="700"
+          fill={fillFor(right)}
+          fontFamily="ui-sans-serif, system-ui, sans-serif"
+        >
+          {rightModifier}
+        </text>
+      )}
+      {middleModifier && (
+        <text
+          x="40"
+          y="40"
+          textAnchor="middle"
+          fontSize="8"
+          fontWeight="700"
+          fill={fillFor(middle)}
+          fontFamily="ui-sans-serif, system-ui, sans-serif"
+        >
+          {middleModifier}
         </text>
       )}
 

@@ -1,42 +1,39 @@
 /**
  * Mouse-button presets modeled after popular CAD tools.
  *
- * `three-stdlib`'s TrackballControls only inspects `event.button` in
- * onMouseDown, so modifier-key variants (SolidWorks Ctrl+MMB pan,
- * Fusion Shift+MMB orbit, etc.) are collapsed to pure-button equivalents
- * that a 3-button mouse user would set in each app's own navigation-type
- * preference pane.
+ * We go through a capture-phase pointerdown listener that rewrites
+ * `controls.mouseButtons` based on (button, modifier) before TrackballControls
+ * reads it, so all of these presets are the *real* bindings each CAD tool
+ * uses — no more "collapsed to RMB" fallbacks.
  *
- * `mouseButtons` uses three.js's MOUSE-enum slot naming:
- *   - LEFT   -> the event.button value that triggers ROTATE
- *   - MIDDLE -> the event.button value that triggers DOLLY / ZOOM
- *   - RIGHT  -> the event.button value that triggers PAN
- * A slot set to -1 (or any value no mouse button produces) is effectively
- * disabled.
- *
- * event.button values:
- *   0 = left, 1 = middle, 2 = right
+ * See `navigationBindings.ts` for the runtime that makes this work.
  */
 
 export type NavigationMode =
   | "default"
   | "solidworks"
   | "fusion"
+  | "onshape"
+  | "blender"
   | "touchpad";
 
-export type MouseButtons = {
-  LEFT: number;
-  MIDDLE: number;
-  RIGHT: number;
+export type MouseButton = "LMB" | "MMB" | "RMB";
+export type Modifier = "none" | "shift" | "ctrl" | "alt";
+export type NavigationAction = "rotate" | "pan" | "zoom";
+
+export type Binding = {
+  button: MouseButton;
+  modifier: Modifier;
 };
 
-export type MouseAction = "rotate" | "pan" | "zoom" | null;
-
-export type NavigationButtonMap = {
-  left: MouseAction;
-  middle: MouseAction;
-  right: MouseAction;
-  wheel: MouseAction;
+export type NavigationBindings = {
+  rotate?: Binding;
+  pan?: Binding;
+  /**
+   * Drag-to-zoom binding (e.g. SolidWorks Shift+MMB). The mouse wheel is
+   * always zoom regardless of this binding.
+   */
+  zoom?: Binding;
 };
 
 export type SimilarApp = {
@@ -47,76 +44,94 @@ export type SimilarApp = {
 export type NavigationPreset = {
   id: NavigationMode;
   label: string;
-  description: string;
   tagline: string;
   similarTo: SimilarApp[];
-  notes?: string;
-  buttons: NavigationButtonMap;
-  mouseButtons: MouseButtons;
+  bindings: NavigationBindings;
 };
 
 export const NAVIGATION_PRESETS: NavigationPreset[] = [
   {
     id: "default",
     label: "Default",
-    description:
-      "Three.js default — LMB rotate · MMB zoom · RMB pan · wheel zoom",
-    tagline: "The standard three.js / web-3D mapping. Good starting point.",
+    tagline:
+      "The standard three.js / web-3D mapping. Good baseline if you don't have a CAD preference.",
     similarTo: [
       { name: "three.js", domain: "threejs.org" },
       { name: "Sketchfab", domain: "sketchfab.com" },
     ],
-    buttons: { left: "rotate", middle: "zoom", right: "pan", wheel: "zoom" },
-    mouseButtons: { LEFT: 0, MIDDLE: 1, RIGHT: 2 },
+    bindings: {
+      rotate: { button: "LMB", modifier: "none" },
+      pan: { button: "RMB", modifier: "none" },
+      zoom: { button: "MMB", modifier: "none" },
+    },
   },
   {
     id: "solidworks",
-    label: "SolidWorks / Blender",
-    description:
-      "MMB rotate · RMB pan · wheel zoom (pan modifier collapsed to RMB)",
+    label: "SolidWorks",
     tagline:
-      "Middle-mouse drag to orbit, right-mouse drag to pan — the classic MCAD layout.",
+      "Middle-mouse drag to orbit, Ctrl+MMB to pan, Shift+MMB to drag-zoom — the classic MCAD layout.",
     similarTo: [
       { name: "SolidWorks", domain: "solidworks.com" },
-      { name: "Blender", domain: "blender.org" },
       { name: "Creo", domain: "ptc.com" },
     ],
-    notes:
-      "SolidWorks normally uses Ctrl+MMB for pan. This app only reads the raw mouse button, so pan is remapped to RMB.",
-    buttons: { left: null, middle: "rotate", right: "pan", wheel: "zoom" },
-    mouseButtons: { LEFT: 1, MIDDLE: -1, RIGHT: 2 },
+    bindings: {
+      rotate: { button: "MMB", modifier: "none" },
+      pan: { button: "MMB", modifier: "ctrl" },
+      zoom: { button: "MMB", modifier: "shift" },
+    },
   },
   {
     id: "fusion",
-    label: "Fusion 360 / Onshape",
-    description:
-      "RMB rotate · MMB pan · wheel zoom (orbit modifier collapsed to RMB)",
+    label: "Fusion 360",
     tagline:
-      "Middle-mouse drag to pan, right-mouse drag to orbit — matches browser-based MCAD.",
+      "Middle-mouse drag to pan, Shift+MMB to orbit — matches Autodesk's default.",
     similarTo: [
       { name: "Fusion 360", domain: "autodesk.com" },
-      { name: "Onshape", domain: "onshape.com" },
       { name: "Inventor", domain: "autodesk.com" },
     ],
-    notes:
-      "Fusion 360 normally uses Shift+MMB for orbit. This app only reads the raw mouse button, so orbit is remapped to RMB.",
-    buttons: { left: null, middle: "pan", right: "rotate", wheel: "zoom" },
-    mouseButtons: { LEFT: 2, MIDDLE: -1, RIGHT: 1 },
+    bindings: {
+      rotate: { button: "MMB", modifier: "shift" },
+      pan: { button: "MMB", modifier: "none" },
+    },
+  },
+  {
+    id: "onshape",
+    label: "Onshape / Shapr3D",
+    tagline:
+      "Right-mouse drag to orbit, middle-mouse drag to pan — browser-native CAD style.",
+    similarTo: [
+      { name: "Onshape", domain: "onshape.com" },
+      { name: "Shapr3D", domain: "shapr3d.com" },
+    ],
+    bindings: {
+      rotate: { button: "RMB", modifier: "none" },
+      pan: { button: "MMB", modifier: "none" },
+    },
+  },
+  {
+    id: "blender",
+    label: "Blender",
+    tagline:
+      "Middle-mouse drag to orbit, Shift+MMB to pan, Ctrl+MMB to drag-zoom.",
+    similarTo: [{ name: "Blender", domain: "blender.org" }],
+    bindings: {
+      rotate: { button: "MMB", modifier: "none" },
+      pan: { button: "MMB", modifier: "shift" },
+      zoom: { button: "MMB", modifier: "ctrl" },
+    },
   },
   {
     id: "touchpad",
     label: "Touchpad",
-    description: "LMB rotate · wheel zoom · no middle/right bindings",
     tagline:
-      "Only the left button and scroll are used — best for laptop trackpads without a real middle/right button.",
+      "Left-mouse drag to orbit, two-finger scroll to zoom. Best for laptop trackpads.",
     similarTo: [
       { name: "Trackpad", domain: "apple.com" },
       { name: "Magic Mouse", domain: "apple.com" },
     ],
-    notes:
-      "Pan is not bound. Use two-finger scroll to zoom and left-click drag to orbit.",
-    buttons: { left: "rotate", middle: null, right: null, wheel: "zoom" },
-    mouseButtons: { LEFT: 0, MIDDLE: -1, RIGHT: -1 },
+    bindings: {
+      rotate: { button: "LMB", modifier: "none" },
+    },
   },
 ];
 
@@ -137,4 +152,18 @@ export function faviconUrl(domain: string, size: 16 | 32 | 64 = 64): string {
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(
     domain
   )}&sz=${size}`;
+}
+
+/** Display strings for modifier keys. Using the macOS glyphs which are
+ *  broadly recognized by CAD users on both platforms. */
+export const MODIFIER_GLYPHS: Record<Modifier, string> = {
+  none: "",
+  shift: "⇧",
+  ctrl: "⌃",
+  alt: "⌥",
+};
+
+export function formatBinding(binding: Binding): string {
+  const glyph = MODIFIER_GLYPHS[binding.modifier];
+  return glyph ? `${glyph} ${binding.button}` : binding.button;
 }

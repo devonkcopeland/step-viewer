@@ -68,11 +68,6 @@ export function buildAssemblyTree(
   return build(result.root, "", rootFallbackName);
 }
 
-/** The tree panel is only worth showing when there's real hierarchy. */
-export function isMeaningfulAssembly(tree: AssemblyNode): boolean {
-  return tree.children.length > 0;
-}
-
 /** Flat count of parts (leaf-owning-meshes) in the tree. */
 export function countParts(tree: AssemblyNode): number {
   let count = 0;
