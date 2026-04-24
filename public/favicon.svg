@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>STEP Viewer</title>
+  <rect width="32" height="32" rx="7" fill="#0a0a0a"/>
+  <g stroke="#0a0a0a" stroke-width="0.75" stroke-linejoin="round">
+    <path d="M16 6 L25 11 L16 16 L7 11 Z" fill="#ffffff"/>
+    <path d="M7 11 L16 16 L16 26 L7 21 Z" fill="#b8b8b8"/>
+    <path d="M25 11 L16 16 L16 26 L25 21 Z" fill="#7a7a7a"/>
+  </g>
+</svg>
