@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import LoaderOverlay from "./components/LoaderOverlay";
@@ -10,10 +10,53 @@ import ThreeObjectMesh from "./components/ThreeObjectMesh";
 import AnnotationCanvas, {
   AnnotationCanvasHandle,
 } from "./components/AnnotationCanvas";
+import NavigationModeDialog from "./components/NavigationModeDialog";
+import AssemblyTreePanel from "./components/AssemblyTreePanel";
+import {
+  DEFAULT_NAVIGATION_MODE,
+  NAVIGATION_PRESETS,
+  NavigationMode,
+} from "./lib/navigationModes";
+import {
+  AssemblyNode,
+  NodeOverride,
+  NodeOverrides,
+  buildAssemblyTree,
+  buildMeshOwnership,
+  effectiveMeshStyle,
+  isMeaningfulAssembly,
+} from "./lib/assemblyTree";
 import {
   OcctImportJSResult,
   OcctImportMesh,
 } from "../public/occt-import-js/types";
+
+const NAV_STORAGE_KEY = "step-viewer/navigation-mode";
+
+function loadInitialNavigationMode(): NavigationMode {
+  try {
+    const stored = window.localStorage.getItem(NAV_STORAGE_KEY);
+    if (stored && NAVIGATION_PRESETS.some((p) => p.id === stored)) {
+      return stored as NavigationMode;
+    }
+  } catch {
+    // ignore localStorage access errors (SSR, privacy mode, etc.)
+  }
+  return DEFAULT_NAVIGATION_MODE;
+}
+
+/**
+ * True only on the user's first visit (nothing stored yet). Must be computed
+ * during render / state init — the persistence effect writes the default mode
+ * on mount, so by the time any effect runs the key is already populated.
+ */
+function isFirstNavigationVisit(): boolean {
+  try {
+    return window.localStorage.getItem(NAV_STORAGE_KEY) === null;
+  } catch {
+    return false;
+  }
+}
 
 type LoadedObject = {
   id: number;
@@ -28,6 +71,8 @@ function isStepFile(file: File) {
 
 function App() {
   const [objects, setObjects] = useState<LoadedObject[]>([]);
+  const [assemblyTree, setAssemblyTree] = useState<AssemblyNode | null>(null);
+  const [nodeOverrides, setNodeOverrides] = useState<NodeOverrides>({});
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileBlob, setFileBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,6 +81,19 @@ function App() {
   const [annotating, setAnnotating] = useState(false);
   const [annotationColor, setAnnotationColor] = useState("#ef4444");
   const [annotationWidth, setAnnotationWidth] = useState(3);
+  const [navigationMode, setNavigationMode] = useState<NavigationMode>(
+    loadInitialNavigationMode
+  );
+  const [isFirstVisit, setIsFirstVisit] = useState(isFirstNavigationVisit);
+  const [navigationDialogOpen, setNavigationDialogOpen] = useState(isFirstVisit);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(NAV_STORAGE_KEY, navigationMode);
+    } catch {
+      // ignore
+    }
+  }, [navigationMode]);
 
   const dragCounter = useRef(0);
   const hiddenInputRef = useRef<HTMLInputElement>(null);
@@ -70,12 +128,16 @@ function App() {
           mesh,
         }));
         setObjects(next);
+        setAssemblyTree(buildAssemblyTree(result, name));
+        setNodeOverrides({});
         setStatus("Ready");
       } catch (err) {
         console.error(err);
         setStatus("Failed to load file");
         setFileName(null);
         setFileBlob(null);
+        setAssemblyTree(null);
+        setNodeOverrides({});
       } finally {
         setLoading(false);
       }
@@ -90,6 +152,8 @@ function App() {
 
   const handleReset = useCallback(() => {
     setObjects([]);
+    setAssemblyTree(null);
+    setNodeOverrides({});
     setFileName(null);
     setFileBlob(null);
     setStatus("Ready");
@@ -232,6 +296,72 @@ function App() {
 
   const hasModel = objects.length > 0;
 
+  // Mesh-index → ancestor chain; recomputed only when the tree changes (per
+  // file load), so the per-frame render cost of applying overrides is just a
+  // small dictionary lookup per mesh.
+  const meshOwnership = useMemo(
+    () =>
+      assemblyTree ? buildMeshOwnership(assemblyTree) : new Map<number, string[]>(),
+    [assemblyTree]
+  );
+
+  // Base color lookup the tree panel uses to show each node's default swatch
+  // when the node has no override. Stable across re-renders as long as the
+  // object list doesn't change.
+  const baseColorForMesh = useCallback(
+    (meshIndex: number): [number, number, number] => {
+      const obj = objects[meshIndex];
+      return obj?.color ?? [0.88, 0.9, 0.92];
+    },
+    [objects]
+  );
+
+  // Effective render style per object, after applying tree overrides.
+  const renderObjects = useMemo(() => {
+    if (!assemblyTree) {
+      return objects.map((o) => ({
+        ...o,
+        renderColor: o.color,
+        renderOpacity: 1,
+        renderVisible: true,
+      }));
+    }
+    return objects.map((o) => {
+      const style = effectiveMeshStyle(
+        o.id,
+        meshOwnership,
+        nodeOverrides,
+        o.color
+      );
+      return {
+        ...o,
+        renderColor: style.color,
+        renderOpacity: style.opacity,
+        renderVisible: style.visible,
+      };
+    });
+  }, [objects, assemblyTree, meshOwnership, nodeOverrides]);
+
+  const handleOverrideChange = useCallback(
+    (nodeId: string, next: NodeOverride | null) => {
+      setNodeOverrides((prev) => {
+        const copy = { ...prev };
+        if (
+          next === null ||
+          (!next.color && !next.hidden && typeof next.opacity !== "number")
+        ) {
+          delete copy[nodeId];
+        } else {
+          copy[nodeId] = next;
+        }
+        return copy;
+      });
+    },
+    []
+  );
+
+  const showAssemblyPanel = !!assemblyTree && isMeaningfulAssembly(assemblyTree);
+
   return (
     <div className="grid h-screen w-screen grid-rows-[auto_1fr_auto] bg-background font-sans text-foreground">
       <Header
@@ -242,20 +372,51 @@ function App() {
         onDownloadClick={handleDownload}
         annotating={annotating}
         onAnnotateClick={handleToggleAnnotate}
+        navigationMode={navigationMode}
+        onOpenNavigationModes={() => setNavigationDialogOpen(true)}
+      />
+
+      <NavigationModeDialog
+        open={navigationDialogOpen}
+        value={navigationMode}
+        firstVisit={isFirstVisit}
+        onChange={setNavigationMode}
+        onClose={() => {
+          setNavigationDialogOpen(false);
+          setIsFirstVisit(false);
+        }}
       />
 
       <main className="viewer-grid relative overflow-hidden">
         {hasModel && (
-          <ThreeCanvas controlsEnabled={!annotating}>
+          <ThreeCanvas
+            controlsEnabled={!annotating}
+            navigationMode={navigationMode}
+          >
             <ThreeEnvironment />
-            {objects.map((object) => (
+            {renderObjects.map((object) => (
               <ThreeObjectMesh
                 key={object.id}
                 mesh={object.mesh}
-                color={object.color}
+                color={object.renderColor}
+                opacity={object.renderOpacity}
+                visible={object.renderVisible}
               />
             ))}
           </ThreeCanvas>
+        )}
+
+        {hasModel && showAssemblyPanel && assemblyTree && (
+          <AssemblyTreePanel
+            // Remount the panel when the user loads a different file so
+            // internal UI state (expanded set, currently-open settings row)
+            // doesn't leak across unrelated trees.
+            key={fileName ?? "assembly"}
+            tree={assemblyTree}
+            overrides={nodeOverrides}
+            onOverrideChange={handleOverrideChange}
+            baseColorForMesh={baseColorForMesh}
+          />
         )}
 
         {hasModel && annotating && (
@@ -279,7 +440,7 @@ function App() {
                 max={20}
                 value={annotationWidth}
                 onChange={(e) => setAnnotationWidth(Number(e.target.value))}
-                className="w-24 accent-[var(--theme-primary)]"
+                className="w-24 accent-primary"
                 title="Stroke width"
               />
               <span className="w-5 text-center text-xs text-muted">

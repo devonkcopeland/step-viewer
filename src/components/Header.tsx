@@ -1,4 +1,8 @@
 import Logo from "./Logo";
+import {
+  NAVIGATION_PRESETS,
+  NavigationMode,
+} from "../lib/navigationModes";
 
 type HeaderProps = {
   hasModel: boolean;
@@ -8,6 +12,8 @@ type HeaderProps = {
   onDownloadClick?: () => void;
   annotating?: boolean;
   onAnnotateClick?: () => void;
+  navigationMode?: NavigationMode;
+  onOpenNavigationModes?: () => void;
 };
 
 function Header({
@@ -18,7 +24,12 @@ function Header({
   onDownloadClick,
   annotating,
   onAnnotateClick,
+  navigationMode,
+  onOpenNavigationModes,
 }: HeaderProps) {
+  const activePreset =
+    NAVIGATION_PRESETS.find((p) => p.id === navigationMode) ??
+    NAVIGATION_PRESETS[0];
   return (
     <header className="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3 sm:px-6">
       <div className="flex items-center gap-2.5 text-foreground">
@@ -27,29 +38,34 @@ function Header({
           STEP Viewer
         </span>
         <span className="mx-1 h-4 w-px bg-border" />
-        <span className="text-xs text-muted">occt-import-js</span>
+        <a href="https://www.finalrev.com?utm_source=step-viewer" target="_blank" rel="noopener noreferrer" className="text-xs text-muted hover:text-foreground hover:underline">by finalREV</a>
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onOpenClick}
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-[var(--theme-gray-100)]"
-        >
-          <UploadIcon />
-          Open STEP
-        </button>
-
+        {hasModel && onOpenNavigationModes && (
+          <button
+            type="button"
+            onClick={onOpenNavigationModes}
+            title={activePreset.description}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-[var(--theme-gray-100)]"
+          >
+            <MouseIcon />
+            <span className="hidden sm:inline">
+              <span className="text-muted">Nav:</span>{" "}
+              <span className="font-semibold">{activePreset.label}</span>
+            </span>
+            <span className="sm:hidden">Nav</span>
+          </button>
+        )}
         {hasModel && onAnnotateClick && (
           <button
             type="button"
             onClick={onAnnotateClick}
             title={annotating ? "Exit annotation mode" : "Draw on the view"}
-            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-              annotating
-                ? "border-transparent bg-primary text-primary-foreground hover:opacity-90"
-                : "border-border bg-background text-foreground hover:bg-[var(--theme-gray-100)]"
-            }`}
+            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${annotating
+              ? "border-transparent bg-primary text-primary-foreground hover:opacity-90"
+              : "border-border bg-background text-foreground hover:bg-[var(--theme-gray-100)]"
+              }`}
           >
             <PencilIcon />
             {annotating ? "Done" : "Annotate"}
@@ -100,6 +116,25 @@ function UploadIcon() {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
       <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function MouseIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="6" y="3" width="12" height="18" rx="6" />
+      <line x1="12" y1="7" x2="12" y2="12" />
     </svg>
   );
 }
