@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import LoaderOverlay from "./components/LoaderOverlay";
@@ -69,6 +70,10 @@ type LoadedObject = {
   // via a layout effect) races Bounds's own fit pass and makes some parts land
   // offscreen on first load — which is exactly the finalrev repo's approach.
   geometry: THREE.BufferGeometry;
+  // True CAD edges rebuilt from the BRep face topology (see
+  // `buildEdgesFromBrepFaces`). Pre-built so <lineSegments> can render it
+  // with no per-frame cost. May be `null` only if edge construction fails.
+  edges: THREE.BufferGeometry | null;
 };
 
 function buildGeometry(mesh: OcctImportMesh): THREE.BufferGeometry {
@@ -95,6 +100,87 @@ function buildGeometry(mesh: OcctImportMesh): THREE.BufferGeometry {
   geom.computeBoundingBox();
   geom.computeBoundingSphere();
   return geom;
+}
+
+/**
+ * Build proper CAD-style edge geometry using the BRep face topology that
+ * occt-import-js preserves alongside the tessellation.
+ *
+ * Naive `THREE.EdgesGeometry(geom, 15)` (what drei's `<Edges>` does under the
+ * hood) walks the whole triangle soup and keeps any edge whose adjacent
+ * triangles differ by 15°+. That produces a lot of "crusty" line segments on
+ * tessellated curved surfaces — a bored hole or a fillet lights up every
+ * facet boundary instead of just its silhouette.
+ *
+ * STEP files carry the real face topology. occt-import-js exposes this via
+ * `mesh.brep_faces`, where each entry says "triangles [first..last] belong to
+ * face N of the original BRep." For each such sub-mesh we then ask
+ * `EdgesGeometry` with a 180° threshold, which reduces to "keep only edges
+ * with a single incident triangle" — i.e. the face boundary. Merging all the
+ * face boundaries yields exactly the edges a CAD user expects: sharp creases
+ * stay, smooth curves don't get segmented.
+ *
+ * Mirrors finalrev's `buildEdgesGeometryFromBrepFaces` in
+ * `frontend/src/components/part/part-provider.tsx`.
+ */
+function buildEdgesFromBrepFaces(
+  geom: THREE.BufferGeometry,
+  mesh: OcctImportMesh
+): THREE.BufferGeometry | null {
+  try {
+    const indices = geom.getIndex();
+    const position = geom.getAttribute("position");
+    if (!indices || !position) return null;
+
+    const brepFaces = mesh.brep_faces;
+    if (!Array.isArray(brepFaces) || brepFaces.length === 0) {
+      // No topology info — fall back to crease-angle detection on the whole
+      // mesh. Worse visual quality but still better than nothing.
+      return new THREE.EdgesGeometry(geom, 15);
+    }
+
+    const fullIndexArray = indices.array as ArrayLike<number>;
+    const perFaceEdges: THREE.BufferGeometry[] = [];
+
+    for (const face of brepFaces) {
+      const startIndex = face.first * 3;
+      const endIndex = (face.last + 1) * 3;
+      const faceIndexSlice = Array.from(fullIndexArray).slice(
+        startIndex,
+        endIndex
+      );
+      if (faceIndexSlice.length === 0) continue;
+
+      const faceGeom = new THREE.BufferGeometry();
+      // Share the vertex buffer — the sub-geometry only differs in the index
+      // slice that selects triangles for this one BRep face.
+      faceGeom.setAttribute("position", position);
+      const normal = geom.getAttribute("normal");
+      if (normal) faceGeom.setAttribute("normal", normal);
+      faceGeom.setIndex(
+        new THREE.BufferAttribute(Uint32Array.from(faceIndexSlice), 1)
+      );
+
+      // 180° = "only edges with exactly one adjacent triangle inside this
+      // face subset" = face boundary. That boundary IS the original STEP
+      // edge, not a tessellation artifact.
+      const faceEdges = new THREE.EdgesGeometry(faceGeom, 180);
+      perFaceEdges.push(faceEdges);
+
+      // The sub-geometry has done its job; dispose the wrapper but leave the
+      // shared attributes alone (they're still owned by `geom`).
+      faceGeom.dispose();
+    }
+
+    if (perFaceEdges.length === 0) return null;
+
+    const merged = mergeGeometries(perFaceEdges, false);
+    for (const eg of perFaceEdges) eg.dispose();
+    return merged ?? null;
+  } catch (err) {
+    console.warn("buildEdgesFromBrepFaces failed, skipping edges", err);
+    return null;
+  }
 }
 
 function isStepFile(file: File) {
@@ -153,18 +239,25 @@ function App() {
           (Math.abs(c[0] - c[1]) < 0.01 &&
             Math.abs(c[1] - c[2]) < 0.01 &&
             c[0] < 0.85);
-        const next: LoadedObject[] = result.meshes.map((mesh, index) => ({
-          id: index,
-          color: (isOcctDefaultGray(mesh.color)
-            ? DEFAULT_COLOR
-            : mesh.color) as [number, number, number],
-          mesh,
-          geometry: buildGeometry(mesh),
-        }));
+        const next: LoadedObject[] = result.meshes.map((mesh, index) => {
+          const geometry = buildGeometry(mesh);
+          return {
+            id: index,
+            color: (isOcctDefaultGray(mesh.color)
+              ? DEFAULT_COLOR
+              : mesh.color) as [number, number, number],
+            mesh,
+            geometry,
+            edges: buildEdgesFromBrepFaces(geometry, mesh),
+          };
+        });
         // Dispose previous geometries to release GPU/CPU memory when loading a
         // second file in the same session.
         setObjects((prev) => {
-          for (const obj of prev) obj.geometry.dispose();
+          for (const obj of prev) {
+            obj.geometry.dispose();
+            obj.edges?.dispose();
+          }
           return next;
         });
         setAssemblyTree(buildAssemblyTree(result, name));
@@ -191,7 +284,10 @@ function App() {
 
   const handleReset = useCallback(() => {
     setObjects((prev) => {
-      for (const obj of prev) obj.geometry.dispose();
+      for (const obj of prev) {
+        obj.geometry.dispose();
+        obj.edges?.dispose();
+      }
       return [];
     });
     setAssemblyTree(null);
@@ -445,6 +541,7 @@ function App() {
               <ThreeObjectMesh
                 key={object.id}
                 geometry={object.geometry}
+                edges={object.edges}
                 color={object.renderColor}
                 opacity={object.renderOpacity}
                 visible={object.renderVisible}

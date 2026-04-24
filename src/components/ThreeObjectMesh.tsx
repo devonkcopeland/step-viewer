@@ -1,27 +1,31 @@
 import * as THREE from "three";
 import { useMemo } from "react";
-import { Edges } from "@react-three/drei";
 import { useTheme } from "../lib/ThemeContext";
 
-const EDGE_THRESHOLD_DEGREES = 15;
-
 /**
- * Renders a pre-built BufferGeometry as a shaded mesh with silhouette edges.
+ * Renders a pre-built BufferGeometry as a shaded mesh with its true CAD edges.
  *
- * Geometry is constructed in App.tsx at STEP-parse time (see `buildGeometry`
- * there) and passed in via `geometry`. Attaching it with `<primitive>` means
- * drei's `<Bounds>` sees a fully-populated BufferGeometry with a valid
- * bounding box on the very first render — the finalrev viewer does this same
- * thing, and it's what makes camera fitting reliable for any part no matter
- * how far from the origin it was authored.
+ * Both `geometry` (the triangle mesh) and `edges` (line segments) are
+ * constructed in App.tsx at STEP-parse time. Attaching them with
+ * `<primitive>` means drei's `<Bounds>` sees a fully-populated BufferGeometry
+ * with a valid bounding box on the very first render — the finalrev viewer
+ * does this same thing.
+ *
+ * Edges come from the STEP BRep face topology (see `buildEdgesFromBrepFaces`
+ * in App.tsx). This is noticeably cleaner than drei's `<Edges threshold={15}>`
+ * fallback because curved faces — bored holes, fillets, cylindrical walls —
+ * render as a single smooth outline instead of a chain of tessellation-facet
+ * segments.
  */
 function ThreeObjectMesh({
   geometry,
+  edges,
   color,
   opacity = 1,
   visible = true,
 }: {
   geometry: THREE.BufferGeometry;
+  edges: THREE.BufferGeometry | null;
   color: [number, number, number];
   opacity?: number;
   visible?: boolean;
@@ -32,34 +36,44 @@ function ThreeObjectMesh({
     )},${Math.round(color[2] * 255)})`;
   }, [color]);
 
-  // Edge color follows the active theme so silhouette edges stay visible on
-  // both light backdrops (ivory / paper) and dark ones (blueprint / brutalist
-  // dark). Sourced from the TS theme registry so we don't have to re-read CSS
-  // vars from the Three.js render loop.
   const { visual } = useTheme();
 
   const isTransparent = opacity < 1;
 
   return (
-    <mesh visible={visible}>
-      <primitive attach="geometry" object={geometry} />
-      <meshStandardMaterial
-        color={colorString}
-        metalness={0.05}
-        roughness={0.45}
-        transparent={isTransparent}
-        opacity={opacity}
-        // When transparent, depthWrite=false avoids self-sorting artifacts
-        // where the back faces of one part occlude the front faces of another.
-        depthWrite={!isTransparent}
-      />
-      <Edges
-        scale={1}
-        threshold={EDGE_THRESHOLD_DEGREES}
-        color={visual.edgeColor}
-        lineWidth={1.2}
-      />
-    </mesh>
+    <>
+      <mesh visible={visible}>
+        <primitive attach="geometry" object={geometry} />
+        <meshStandardMaterial
+          color={colorString}
+          metalness={0.05}
+          roughness={0.45}
+          transparent={isTransparent}
+          opacity={opacity}
+          // When transparent, depthWrite=false avoids self-sorting artifacts
+          // where back faces of one part occlude front faces of another.
+          depthWrite={!isTransparent}
+          // Push the shaded surface a touch further from the camera so the
+          // edge line renders cleanly on top without z-fighting.
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+        />
+      </mesh>
+      {edges && visible && (
+        <lineSegments>
+          <primitive attach="geometry" object={edges} />
+          <lineBasicMaterial
+            color={visual.edgeColor}
+            transparent={isTransparent}
+            opacity={opacity}
+            // Edges should always draw on top of their own surface; test but
+            // don't write so we still occlude against other geometry.
+            depthWrite={false}
+          />
+        </lineSegments>
+      )}
+    </>
   );
 }
 

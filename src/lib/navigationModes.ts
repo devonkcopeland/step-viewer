@@ -144,14 +144,20 @@ export function getNavigationPreset(mode: NavigationMode): NavigationPreset {
 }
 
 /**
- * Google's favicon endpoint. Requires `sz` to be a supported size
- * (16 / 32 / 64). We request 64px so it stays crisp on HiDPI displays
- * when rendered at 16-18px.
+ * Resolves to a **self-hosted** favicon under `/public/app-icons/{domain}.png`.
+ * We intentionally do NOT hit Google's favicon service (or any third party) at
+ * runtime so the app makes zero outbound requests once loaded — see the
+ * privacy tooltip in `Footer.tsx`.
+ *
+ * To add a new domain: drop a `public/app-icons/{domain}.png` file and
+ * reference it from `NAVIGATION_PRESETS`. If the file is missing the chip
+ * gracefully falls back to a globe icon (see `NavigationModeDialog.tsx`).
+ *
+ * The `size` parameter is kept for API compatibility but is unused; the
+ * bundled PNGs are all 64px.
  */
-export function faviconUrl(domain: string, size: 16 | 32 | 64 = 64): string {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(
-    domain
-  )}&sz=${size}`;
+export function faviconUrl(domain: string, _size: 16 | 32 | 64 = 64): string {
+  return `/app-icons/${domain}.png`;
 }
 
 /** Display strings for modifier keys. Using the macOS glyphs which are
