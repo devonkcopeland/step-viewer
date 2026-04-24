@@ -185,7 +185,7 @@
 
   --font-sans: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --radius: 2px;
+  --radius: 0px;
 }
 
 /* TERMINAL — light (amber-paper inversion) */
@@ -207,7 +207,7 @@
 
   --font-sans: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --radius: 2px;
+  --radius: 0px;
 }
 
 /* =========================================================================
@@ -497,8 +497,13 @@
   background-size: 28px 28px;
 }
 
-/* ---------- Brutalist global overrides ---------- */
-[data-theme="brutalist"] [class*="rounded"] {
+/* ---------- Square-corner themes ----------
+ * Both Brutalist and Terminal flatten every `rounded-*` utility to 0. This
+ * keeps the CRT/monospaced aesthetic consistent across components that
+ * otherwise pick Tailwind's hard-coded pixel radii (rounded-md = 6px, etc.)
+ * rather than our `--radius` token. */
+[data-theme="brutalist"] [class*="rounded"],
+[data-theme="terminal"] [class*="rounded"] {
   border-radius: 0;
 }
 [data-theme="brutalist"] .bg-primary {
@@ -678,7 +683,15 @@
 }
 
 [data-theme="brutalist"] .progress-track,
-[data-theme="brutalist"] .progress-track::after {
+[data-theme="brutalist"] .progress-track::after,
+[data-theme="terminal"] .progress-track,
+[data-theme="terminal"] .progress-track::after {
+  border-radius: 0;
+}
+
+/* Terminal's status dot becomes a tiny CRT square too. Keep the phosphor
+ * bloom so it still reads as "alive". */
+[data-theme="terminal"] .status-dot {
   border-radius: 0;
 }
 
