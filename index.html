@@ -4,16 +4,50 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="mask-icon" href="/favicon.svg" color="#0a0a0a" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <script type="text/javascript" src="/occt-import-js/occt-import-js.js"></script>
     <title>STEP Viewer — by finalrev</title>
+    <!--
+      Apply the persisted theme before React mounts to avoid a flash of the
+      default look when reloading into e.g. brutalist/dark. Kept tiny +
+      dependency-free; mirrors the resolution logic in
+      src/lib/ThemeContext.tsx. Must be kept in sync with the theme ids in
+      src/lib/themes.ts.
+    -->
+    <script>
+      (function () {
+        try {
+          var THEMES = ["classic", "paper", "terminal", "brutalist"];
+          var DEFAULT_THEME = "paper";
+          var DEFAULT_MODE = "light";
+          var themeId = localStorage.getItem("step-viewer/theme");
+          if (!themeId || THEMES.indexOf(themeId) === -1)
+            themeId = DEFAULT_THEME;
+          var modePref = localStorage.getItem("step-viewer/theme-mode");
+          if (modePref !== "light" && modePref !== "dark" && modePref !== "system")
+            modePref = DEFAULT_MODE;
+          var mode =
+            modePref === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : modePref;
+          var root = document.documentElement;
+          root.setAttribute("data-theme", themeId);
+          root.setAttribute("data-mode", mode);
+          root.style.colorScheme = mode;
+        } catch (e) {
+          /* no-op */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

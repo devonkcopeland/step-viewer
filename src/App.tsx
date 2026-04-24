@@ -235,53 +235,62 @@ function App() {
     [handleLoadFromFile]
   );
 
+  const handleLoadExample = useCallback(
+    (exampleName: string) => {
+      if (!/^[\w.\-]+\.(step|stp)$/i.test(exampleName)) {
+        console.warn(`Invalid example name: ${exampleName}`);
+        setStatus("Invalid example name");
+        return;
+      }
+      const url = `/examples/${exampleName}`;
+      setStatus(`Loading example ${exampleName}…`);
+      fetch(url)
+        .then(async (res) => {
+          if (!res.ok) {
+            throw new Error(`Example not found (HTTP ${res.status}): ${url}`);
+          }
+          const contentType = res.headers.get("content-type") ?? "";
+          const blob = await res.blob();
+          // Vite's dev server falls back to index.html for unknown paths, so
+          // a 200 OK here can still be HTML. Detect that and fail loudly.
+          if (contentType.includes("text/html")) {
+            throw new Error(
+              `Example file missing at ${url} (server returned HTML fallback). ` +
+              `Place "${exampleName}" in public/examples/.`
+            );
+          }
+          const head = await blob.slice(0, 16).text();
+          const looksLikeStep = /^(ISO-10303-21|\s*\/\*|HEADER)/i.test(head);
+          if (!looksLikeStep) {
+            throw new Error(
+              `File at ${url} does not look like a STEP file (got: ${JSON.stringify(
+                head.slice(0, 12)
+              )}).`
+            );
+          }
+          return blob;
+        })
+        .then((blob) => handleLoadFromSource(blob, exampleName))
+        .catch((err) => {
+          console.error(err);
+          setStatus(
+            err instanceof Error
+              ? err.message
+              : `Could not load example: ${exampleName}`
+          );
+        });
+    },
+    [handleLoadFromSource]
+  );
+
+  // Kick off the example load when the URL carries ?example=<name> on first
+  // mount. Direct clicks from the empty state reuse `handleLoadExample`
+  // without touching the URL, avoiding a full page reload.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const exampleName = params.get("example");
-    if (!exampleName) return;
-    if (!/^[\w.\-]+\.(step|stp)$/i.test(exampleName)) {
-      console.warn(`Invalid example name: ${exampleName}`);
-      setStatus("Invalid example name in URL");
-      return;
-    }
-    const url = `/examples/${exampleName}`;
-    setStatus(`Loading example ${exampleName}…`);
-    fetch(url)
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`Example not found (HTTP ${res.status}): ${url}`);
-        }
-        const contentType = res.headers.get("content-type") ?? "";
-        const blob = await res.blob();
-        // Vite's dev server falls back to index.html for unknown paths, so a
-        // 200 OK here can still be HTML. Detect that and fail loudly.
-        if (contentType.includes("text/html")) {
-          throw new Error(
-            `Example file missing at ${url} (server returned HTML fallback). ` +
-            `Place "${exampleName}" in public/examples/.`
-          );
-        }
-        const head = await blob.slice(0, 16).text();
-        const looksLikeStep = /^(ISO-10303-21|\s*\/\*|HEADER)/i.test(head);
-        if (!looksLikeStep) {
-          throw new Error(
-            `File at ${url} does not look like a STEP file (got: ${JSON.stringify(
-              head.slice(0, 12)
-            )}).`
-          );
-        }
-        return blob;
-      })
-      .then((blob) => handleLoadFromSource(blob, exampleName))
-      .catch((err) => {
-        console.error(err);
-        setStatus(
-          err instanceof Error
-            ? err.message
-            : `Could not load example: ${exampleName}`
-        );
-      });
-  }, [handleLoadFromSource]);
+    if (exampleName) handleLoadExample(exampleName);
+  }, [handleLoadExample]);
 
   useEffect(() => {
     const onDragEnter = (e: DragEvent) => {
@@ -396,9 +405,7 @@ function App() {
     []
   );
 
-  // The tree overlay is useful only when there are multiple bodies to manage;
-  // for a single-body file it's just visual clutter.
-  const showAssemblyPanel = !!assemblyTree && objects.length >= 2;
+  const showAssemblyPanel = !!assemblyTree && hasModel;
 
   return (
     <div className="grid h-screen w-screen grid-rows-[auto_1fr_auto] bg-background font-sans text-foreground">
@@ -495,7 +502,10 @@ function App() {
         )}
 
         {!hasModel && !loading && (
-          <EmptyState onFileSelected={handleLoadFromFile} />
+          <EmptyState
+            onFileSelected={handleLoadFromFile}
+            onExampleSelected={handleLoadExample}
+          />
         )}
 
         {fileName && hasModel && (

@@ -4,6 +4,7 @@ import {
   NavigationMode,
 } from "../lib/navigationModes";
 import { useCoarsePointer } from "../lib/pointer";
+import ThemePicker from "./ThemePicker";
 
 type HeaderProps = {
   hasModel: boolean;
@@ -63,6 +64,8 @@ function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <ThemePicker />
+
         {hasModel && !isTouch && onOpenNavigationModes && (
           <button
             type="button"

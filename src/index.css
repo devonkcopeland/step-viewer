@@ -2,29 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================================
+ * Theme system
+ *
+ * All themes live in [data-theme="<id>"][data-mode="<mode>"] blocks. The
+ * <html> element's data-theme/data-mode attributes are driven by
+ * ThemeProvider (see src/lib/ThemeContext.tsx). Themes are mirrored in
+ * src/lib/themes.ts for JS-side consumers (e.g. three.js edge color).
+ *
+ * Conventions:
+ *   - Semantic tokens (--background, --foreground, --muted, --border,
+ *     --primary, --primary-foreground, --accent) are required for every
+ *     theme/mode combo.
+ *   - --surface-subtle / --surface-hover / --surface-strong replace the old
+ *     --theme-gray-50/100/200 scale for hover + panel treatments. The old
+ *     names are kept as aliases so existing utility classes keep working.
+ *   - --font-sans / --font-mono / --radius can vary per theme.
+ *   - In dark mode, --viewer-bg is *darker* than --background so the 3D
+ *     scene feels like a dedicated stage below the header/footer chrome.
+ *     In light mode the two can be equal or viewer can be slightly muted.
+ * ========================================================================= */
+
 @layer base {
   :root {
-    /* Neutral palette mirroring finalrev */
-    --theme-white: #ffffff;
-    --theme-gray-50: #fafafa;
-    --theme-gray-100: #f5f5f5;
-    --theme-gray-200: #e5e5e5;
-    --theme-gray-300: #d4d4d4;
-    --theme-gray-400: #a3a3a3;
-    --theme-gray-500: #737373;
-    --theme-gray-600: #525252;
-    --theme-gray-700: #404040;
-    --theme-gray-800: #262626;
-    --theme-gray-900: #171717;
-    --theme-gray-950: #0a0a0a;
-
-    --background: var(--theme-white);
-    --foreground: var(--theme-gray-950);
-    --muted: var(--theme-gray-500);
-    --border: var(--theme-gray-200);
+    /* Safe defaults so things look reasonable even before React mounts. */
+    --background: #ffffff;
+    --foreground: #0a0a0a;
+    --muted: #737373;
+    --border: #e5e5e5;
     --primary: #0a0a0a;
     --primary-foreground: #ffffff;
     --accent: #2563eb;
+
+    --surface-subtle: #fafafa;
+    --surface-hover: #f5f5f5;
+    --surface-strong: #e5e5e5;
+
+    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+      Consolas, monospace;
+
+    --radius: 10px;
+
+    /* Viewer backdrop. */
+    --viewer-bg: #fafafa;
+    --viewer-accent: #d4d4d4;
+
+    /* Backwards-compat aliases for the old grayscale names still referenced
+       by arbitrary-value Tailwind classes across the app. They resolve to
+       semantic surface tokens so they pick up dark mode automatically. */
+    --theme-gray-50: var(--surface-subtle);
+    --theme-gray-100: var(--surface-hover);
+    --theme-gray-200: var(--surface-strong);
+    --theme-gray-300: color-mix(in srgb, var(--foreground) 14%, var(--background));
+    --theme-gray-400: color-mix(in srgb, var(--foreground) 28%, var(--background));
+    --theme-gray-500: var(--muted);
+    --theme-gray-600: color-mix(in srgb, var(--foreground) 62%, var(--background));
+    --theme-gray-700: color-mix(in srgb, var(--foreground) 76%, var(--background));
+    --theme-gray-800: color-mix(in srgb, var(--foreground) 88%, var(--background));
+    --theme-gray-900: var(--foreground);
+    --theme-gray-950: var(--foreground);
+    --theme-white: var(--background);
   }
 
   html,
@@ -34,24 +73,278 @@
   }
 
   body {
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system,
-      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans);
     color: var(--foreground);
     background: var(--background);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 240ms ease, color 240ms ease;
   }
 }
 
-/* ---------- Viewer dotted grid background ---------- */
+/* =========================================================================
+ * CLASSIC — light (neutral shadcn-esque)
+ * ========================================================================= */
+[data-theme="classic"][data-mode="light"] {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --muted: #737373;
+  --border: #e5e5e5;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --accent: #2563eb;
+
+  --surface-subtle: #fafafa;
+  --surface-hover: #f5f5f5;
+  --surface-strong: #e5e5e5;
+
+  --viewer-bg: #fafafa;
+  --viewer-accent: #d4d4d4;
+}
+
+/* CLASSIC — dark: chrome is lighter than the viewer so the 3D stage sinks in. */
+[data-theme="classic"][data-mode="dark"] {
+  --background: #141414;
+  --foreground: #fafafa;
+  --muted: #a3a3a3;
+  --border: #2a2a2a;
+  --primary: #fafafa;
+  --primary-foreground: #0a0a0a;
+  --accent: #60a5fa;
+
+  --surface-subtle: #1c1c1c;
+  --surface-hover: #242424;
+  --surface-strong: #333333;
+
+  --viewer-bg: #0a0a0a;
+  --viewer-accent: #262626;
+}
+
+/* =========================================================================
+ * PAPER — light (default)
+ * Blank white canvas. No grid. Zero decoration.
+ * ========================================================================= */
+[data-theme="paper"][data-mode="light"] {
+  --background: #ffffff;
+  --foreground: #171717;
+  --muted: #737373;
+  --border: #ececec;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --accent: #2563eb;
+
+  --surface-subtle: #fafafa;
+  --surface-hover: #f4f4f4;
+  --surface-strong: #e7e7e7;
+
+  --viewer-bg: #ffffff;
+  --viewer-accent: transparent;
+
+  --radius: 8px;
+}
+
+/* PAPER — dark */
+[data-theme="paper"][data-mode="dark"] {
+  --background: #1a1a1a;
+  --foreground: #f5f5f5;
+  --muted: #8a8a8a;
+  --border: #2c2c2c;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --accent: #60a5fa;
+
+  --surface-subtle: #202020;
+  --surface-hover: #282828;
+  --surface-strong: #373737;
+
+  --viewer-bg: #111111;
+  --viewer-accent: transparent;
+
+  --radius: 8px;
+}
+
+/* =========================================================================
+ * TERMINAL — dark (default)
+ * Phosphor green on near-black, JetBrains Mono throughout, subtle scanlines.
+ * ========================================================================= */
+[data-theme="terminal"][data-mode="dark"] {
+  --background: #0d1117;
+  --foreground: #e6edf3;
+  --muted: #8b949e;
+  --border: #30363d;
+  --primary: #39d353;
+  --primary-foreground: #010409;
+  --accent: #ffa657;
+
+  --surface-subtle: #0b1016;
+  --surface-hover: #161b22;
+  --surface-strong: #21262d;
+
+  --viewer-bg: #010409;
+  --viewer-accent: #39d353;
+
+  --font-sans: "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius: 2px;
+}
+
+/* TERMINAL — light (amber-paper inversion) */
+[data-theme="terminal"][data-mode="light"] {
+  --background: #f4f2e8;
+  --foreground: #0b1a0b;
+  --muted: #4a5f4a;
+  --border: #c7c0a8;
+  --primary: #1a3d1a;
+  --primary-foreground: #f4f2e8;
+  --accent: #b8600e;
+
+  --surface-subtle: #ece9d7;
+  --surface-hover: #dfdac0;
+  --surface-strong: #c7c0a8;
+
+  --viewer-bg: #e8e4d2;
+  --viewer-accent: #9b8c6b;
+
+  --font-sans: "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius: 2px;
+}
+
+/* =========================================================================
+ * BRUTALIST — dark (default)
+ * Deep black + newsprint cream with a single scarlet hot color on the
+ * primary action. Chrome sits lighter than the viewer so the 3D stage is
+ * the darkest rectangle on screen.
+ * ========================================================================= */
+[data-theme="brutalist"][data-mode="dark"] {
+  --background: #0d0d0d;
+  --foreground: #ece6d3;
+  --muted: #8b8575;
+  --border: #ece6d3;
+  --primary: #ff4d4d;
+  --primary-foreground: #ffffff;
+  --accent: #ff4d4d;
+
+  --surface-subtle: #161616;
+  --surface-hover: #1f1f1f;
+  --surface-strong: #2a2a2a;
+
+  --viewer-bg: #000000;
+  --viewer-accent: #ece6d3;
+
+  --font-sans: "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius: 0px;
+}
+
+/* BRUTALIST — light
+ * Warm newsprint cream with 2px black borders and scarlet primary. */
+[data-theme="brutalist"][data-mode="light"] {
+  --background: #ece6d3;
+  --foreground: #0a0a0a;
+  --muted: #555555;
+  --border: #0a0a0a;
+  --primary: #e63946;
+  --primary-foreground: #ffffff;
+  --accent: #e63946;
+
+  --surface-subtle: #e4ddc6;
+  --surface-hover: #d8d1b9;
+  --surface-strong: #bfb79f;
+
+  --viewer-bg: #d9d3bf;
+  --viewer-accent: #0a0a0a;
+
+  --font-sans: "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius: 0px;
+}
+
+/* =========================================================================
+ * Theme-specific flourishes
+ * ========================================================================= */
+
+/* ---------- Viewer backdrop (default: dotted grid) ---------- */
 .viewer-grid {
-  background-color: var(--theme-gray-50);
+  background-color: var(--viewer-bg);
   background-image: radial-gradient(
     circle,
-    var(--theme-gray-300) 1px,
+    var(--viewer-accent) 1px,
     transparent 1px
   );
   background-size: 22px 22px;
+  transition: background-color 240ms ease;
+}
+
+/* Paper: completely blank. No grid. No dots. */
+[data-theme="paper"] .viewer-grid {
+  background-image: none;
+}
+
+/* Terminal dark: horizontal scanlines for the CRT feel. */
+[data-theme="terminal"][data-mode="dark"] .viewer-grid {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    color-mix(in srgb, var(--viewer-accent) 7%, transparent) 2px,
+    color-mix(in srgb, var(--viewer-accent) 7%, transparent) 3px
+  );
+  background-size: auto;
+}
+
+/* Terminal light: a sparse + slightly larger dot grid in aged-green. */
+[data-theme="terminal"][data-mode="light"] .viewer-grid {
+  background-size: 28px 28px;
+}
+
+/* Brutalist: square grid with hard lines. */
+[data-theme="brutalist"] .viewer-grid {
+  background-image:
+    linear-gradient(var(--viewer-accent) 1px, transparent 1px),
+    linear-gradient(90deg, var(--viewer-accent) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+[data-theme="brutalist"][data-mode="dark"] .viewer-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--viewer-accent) 28%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--viewer-accent) 28%, transparent) 1px,
+      transparent 1px
+    );
+}
+
+/* ---------- Brutalist global overrides ---------- */
+[data-theme="brutalist"] [class*="rounded"] {
+  border-radius: 0;
+}
+[data-theme="brutalist"] .bg-primary {
+  box-shadow: 4px 4px 0 0 var(--border);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+[data-theme="brutalist"] .bg-primary:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 0 var(--border);
+}
+[data-theme="brutalist"] .bg-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 var(--border);
+}
+[data-theme="brutalist"] header,
+[data-theme="brutalist"] footer {
+  border-width: 2px;
+}
+
+/* ---------- Terminal flourish: subtle text shadow on primary buttons
+     (phosphor bloom) + monospace number caret in status area. ---------- */
+[data-theme="terminal"][data-mode="dark"] .bg-primary {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--primary) 60%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
+    0 0 14px -2px color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
 /* ---------- Status dot ---------- */
@@ -62,6 +355,19 @@
   background: #22c55e;
   box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
   animation: pulse 2s infinite;
+}
+
+[data-theme="brutalist"] .status-dot {
+  border-radius: 0;
+  background: var(--accent);
+  box-shadow: 2px 2px 0 0 var(--border);
+  animation: none;
+}
+
+[data-theme="terminal"][data-mode="dark"] .status-dot {
+  background: var(--primary);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 55%, transparent),
+    0 0 6px 0 color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
 @keyframes pulse {
@@ -76,7 +382,7 @@
   }
 }
 
-/* ---------- Loader logo stroke-draw (from finalrev) ---------- */
+/* ---------- Loader logo stroke-draw ---------- */
 .logo-draw path {
   fill: none;
   stroke: var(--foreground);
@@ -92,6 +398,11 @@
 }
 .logo-draw path:nth-child(3) {
   animation-delay: 0.3s;
+}
+
+[data-theme="terminal"][data-mode="dark"] .logo-draw path {
+  stroke: var(--primary);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--primary) 60%, transparent));
 }
 
 @keyframes draw {
@@ -117,7 +428,7 @@
   position: relative;
   height: 3px;
   width: 220px;
-  background: var(--theme-gray-200);
+  background: var(--surface-strong);
   border-radius: 9999px;
   overflow: hidden;
 }
@@ -131,6 +442,16 @@
   background: var(--foreground);
   border-radius: 9999px;
   animation: slide 1.4s ease-in-out infinite;
+}
+
+[data-theme="terminal"][data-mode="dark"] .progress-track::after {
+  background: var(--primary);
+  box-shadow: 0 0 8px 0 color-mix(in srgb, var(--primary) 60%, transparent);
+}
+
+[data-theme="brutalist"] .progress-track,
+[data-theme="brutalist"] .progress-track::after {
+  border-radius: 0;
 }
 
 @keyframes slide {

@@ -5,6 +5,7 @@ export default {
     extend: {
       fontFamily: {
         sans: [
+          "var(--font-sans)",
           "Inter",
           "ui-sans-serif",
           "system-ui",
@@ -14,6 +15,15 @@ export default {
           "Helvetica Neue",
           "Arial",
           "sans-serif",
+        ],
+        mono: [
+          "var(--font-mono)",
+          "JetBrains Mono",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
         ],
       },
       colors: {
@@ -28,7 +38,7 @@ export default {
         accent: "var(--accent)",
       },
       borderRadius: {
-        xl: "14px",
+        xl: "var(--radius)",
       },
     },
   },

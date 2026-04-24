@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { useMemo } from "react";
 import { Edges } from "@react-three/drei";
+import { useTheme } from "../lib/ThemeContext";
 
 const EDGE_THRESHOLD_DEGREES = 15;
 
@@ -31,6 +32,12 @@ function ThreeObjectMesh({
     )},${Math.round(color[2] * 255)})`;
   }, [color]);
 
+  // Edge color follows the active theme so silhouette edges stay visible on
+  // both light backdrops (ivory / paper) and dark ones (blueprint / brutalist
+  // dark). Sourced from the TS theme registry so we don't have to re-read CSS
+  // vars from the Three.js render loop.
+  const { visual } = useTheme();
+
   const isTransparent = opacity < 1;
 
   return (
@@ -49,7 +56,7 @@ function ThreeObjectMesh({
       <Edges
         scale={1}
         threshold={EDGE_THRESHOLD_DEGREES}
-        color="#0a0a0a"
+        color={visual.edgeColor}
         lineWidth={1.2}
       />
     </mesh>
