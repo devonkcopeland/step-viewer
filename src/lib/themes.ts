@@ -17,7 +17,13 @@
  *   3. Add its id to the THEMES array in index.html's boot script so the
  *      persisted choice survives a hard refresh.
  */
-export type ThemeId = "classic" | "paper" | "terminal" | "brutalist";
+export type ThemeId =
+  | "classic"
+  | "paper"
+  | "terminal"
+  | "brutalist"
+  | "blueprint"
+  | "space";
 export type ThemeMode = "light" | "dark";
 
 export type ThemeVisual = {
@@ -103,11 +109,11 @@ export const THEMES: ThemeDefinition[] = [
   {
     id: "brutalist",
     label: "Brutalist",
-    tagline: "Newsprint cream, scarlet red, no excuses.",
+    tagline: "Newsprint cream, safety orange, no excuses.",
     defaultMode: "dark",
     previewSwatches: {
-      light: ["#ece6d3", "#0a0a0a", "#e63946", "#e63946"],
-      dark: ["#0d0d0d", "#ece6d3", "#ff4d4d", "#ff4d4d"],
+      light: ["#ece6d3", "#0a0a0a", "#ff5500", "#ff5500"],
+      dark: ["#0d0d0d", "#ece6d3", "#ff6a1f", "#ff6a1f"],
     },
     light: {
       edgeColor: "#555555",
@@ -116,6 +122,45 @@ export const THEMES: ThemeDefinition[] = [
     dark: {
       edgeColor: "#8b8575",
       browserChrome: "#0d0d0d",
+    },
+  },
+  {
+    id: "blueprint",
+    label: "Blueprint",
+    tagline: "Drafting paper by day, cyanotype by night.",
+    defaultMode: "dark",
+    previewSwatches: {
+      light: ["#f6faff", "#e6eff8", "#0a4d8c", "#0a4d8c"],
+      dark: ["#0d2847", "#081f37", "#e6f0fa", "#7dd3fc"],
+    },
+    // Edges track the drafting line aesthetic but stay muted so they read as
+    // geometry, not highlights.
+    light: {
+      edgeColor: "#567a9f",
+      browserChrome: "#f6faff",
+    },
+    dark: {
+      edgeColor: "#7a95b5",
+      browserChrome: "#0d2847",
+    },
+  },
+  {
+    id: "space",
+    label: "Space Odyssey",
+    tagline: "Monolith black, HAL red. Open the pod bay doors.",
+    defaultMode: "dark",
+    previewSwatches: {
+      light: ["#f5f4ef", "#eae8e0", "#111111", "#c1272d"],
+      dark: ["#000000", "#050505", "#f5f5f5", "#e10600"],
+    },
+    // Neutral edges — the red lives in the primary/accent, not the geometry.
+    light: {
+      edgeColor: "#8a8a88",
+      browserChrome: "#f5f4ef",
+    },
+    dark: {
+      edgeColor: "#4a4a4a",
+      browserChrome: "#000000",
     },
   },
 ];

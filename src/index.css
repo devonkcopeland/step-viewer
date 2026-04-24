@@ -212,18 +212,18 @@
 
 /* =========================================================================
  * BRUTALIST — dark (default)
- * Deep black + newsprint cream with a single scarlet hot color on the
- * primary action. Chrome sits lighter than the viewer so the 3D stage is
- * the darkest rectangle on screen.
+ * Deep black + newsprint cream with a single safety-orange hot color on the
+ * primary action (the reds live in Space Odyssey now). Chrome sits lighter
+ * than the viewer so the 3D stage is the darkest rectangle on screen.
  * ========================================================================= */
 [data-theme="brutalist"][data-mode="dark"] {
   --background: #0d0d0d;
   --foreground: #ece6d3;
   --muted: #8b8575;
   --border: #ece6d3;
-  --primary: #ff4d4d;
+  --primary: #ff6a1f;
   --primary-foreground: #ffffff;
-  --accent: #ff4d4d;
+  --accent: #ff6a1f;
 
   --surface-subtle: #161616;
   --surface-hover: #1f1f1f;
@@ -238,15 +238,15 @@
 }
 
 /* BRUTALIST — light
- * Warm newsprint cream with 2px black borders and scarlet primary. */
+ * Warm newsprint cream with 2px black borders and safety-orange primary. */
 [data-theme="brutalist"][data-mode="light"] {
   --background: #ece6d3;
   --foreground: #0a0a0a;
   --muted: #555555;
   --border: #0a0a0a;
-  --primary: #e63946;
+  --primary: #ff5500;
   --primary-foreground: #ffffff;
-  --accent: #e63946;
+  --accent: #ff5500;
 
   --surface-subtle: #e4ddc6;
   --surface-hover: #d8d1b9;
@@ -258,6 +258,100 @@
   --font-sans: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --radius: 0px;
+}
+
+/* =========================================================================
+ * BLUEPRINT — dark (default)
+ * Classic cyanotype: deep navy paper with pale ink lines. White-on-blue is
+ * what people picture when they hear "blueprint", so that's where picking
+ * this theme lands you. The viewer gets an engineering grid (major+minor).
+ * ========================================================================= */
+[data-theme="blueprint"][data-mode="dark"] {
+  --background: #0d2847;
+  --foreground: #e6f0fa;
+  --muted: #7a95b5;
+  --border: #224169;
+  --primary: #9ecbff;
+  --primary-foreground: #0d2847;
+  --accent: #7dd3fc;
+
+  --surface-subtle: #102f51;
+  --surface-hover: #16385d;
+  --surface-strong: #1f4673;
+
+  --viewer-bg: #081f37;
+  --viewer-accent: #9ecbff;
+
+  --radius: 2px;
+}
+
+/* BLUEPRINT — light
+ * Off-white drafting paper with navy ink. The grid is blue on white so the
+ * viewer still reads unmistakably as "engineering drawing". */
+[data-theme="blueprint"][data-mode="light"] {
+  --background: #f6faff;
+  --foreground: #0a2a4f;
+  --muted: #5a7a9a;
+  --border: #c8d8ea;
+  --primary: #0a4d8c;
+  --primary-foreground: #ffffff;
+  --accent: #0a4d8c;
+
+  --surface-subtle: #edf3fb;
+  --surface-hover: #e1ebf7;
+  --surface-strong: #cbd9ee;
+
+  --viewer-bg: #ffffff;
+  --viewer-accent: #0a4d8c;
+
+  --radius: 2px;
+}
+
+/* =========================================================================
+ * SPACE ODYSSEY — dark (default)
+ * Pure infinite black with a tiled starfield behind the model and a HAL-red
+ * primary. Feels like staring through a bulkhead window.
+ * ========================================================================= */
+[data-theme="space"][data-mode="dark"] {
+  --background: #000000;
+  --foreground: #f5f5f5;
+  --muted: #8a8a8a;
+  --border: #1a1a1a;
+  --primary: #e10600;
+  --primary-foreground: #ffffff;
+  --accent: #e10600;
+
+  --surface-subtle: #0a0a0a;
+  --surface-hover: #121212;
+  --surface-strong: #1f1f1f;
+
+  --viewer-bg: #000000;
+  --viewer-accent: #ffffff;
+
+  --radius: 4px;
+}
+
+/* SPACE ODYSSEY — light
+ * The Discovery One pod interior: clean off-white room with muted red HAL
+ * accents. Deliberately the calmest light mode in the set so the dark one
+ * gets to be the show. */
+[data-theme="space"][data-mode="light"] {
+  --background: #f5f4ef;
+  --foreground: #0a0a0a;
+  --muted: #6b6b6b;
+  --border: #d6d2c7;
+  --primary: #c1272d;
+  --primary-foreground: #ffffff;
+  --accent: #c1272d;
+
+  --surface-subtle: #eeece4;
+  --surface-hover: #e5e2d6;
+  --surface-strong: #cfcbbc;
+
+  --viewer-bg: #ebe9e0;
+  --viewer-accent: #8a8a88;
+
+  --radius: 4px;
 }
 
 /* =========================================================================
@@ -316,6 +410,91 @@
       color-mix(in srgb, var(--viewer-accent) 28%, transparent) 1px,
       transparent 1px
     );
+}
+
+/* Blueprint: real engineering grid — faint minor lines at 20px, bolder major
+ * lines every 5 cells (100px). Layer order matters: minor lines first (drawn
+ * behind) so the major lines visibly "win" at intersections. */
+[data-theme="blueprint"] .viewer-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--viewer-accent) 18%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--viewer-accent) 18%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--viewer-accent) 40%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--viewer-accent) 40%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+}
+/* Dark mode reads as cyanotype — push the lines a touch brighter. */
+[data-theme="blueprint"][data-mode="dark"] .viewer-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--viewer-accent) 24%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--viewer-accent) 24%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--viewer-accent) 55%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--viewer-accent) 55%, transparent) 1px,
+      transparent 1px
+    );
+}
+
+/* Space Odyssey: starfield behind the model in dark mode. Two layers at
+ * different tile sizes (260/440) so the repeating tile pattern isn't
+ * obvious — stars of different brightnesses fall out of sync. One layer
+ * carries a faint red pinprick, a nod to HAL watching you work. */
+[data-theme="space"][data-mode="dark"] .viewer-grid {
+  background-color: var(--viewer-bg);
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+    radial-gradient(1.3px 1.3px at 78% 42%, rgba(255, 255, 255, 0.9) 50%, transparent 100%),
+    radial-gradient(1px 1px at 34% 63%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+    radial-gradient(1.6px 1.6px at 62% 82%, rgba(255, 255, 255, 1) 50%, transparent 100%),
+    radial-gradient(1px 1px at 89% 8%, rgba(255, 255, 255, 0.7) 50%, transparent 100%),
+    radial-gradient(1.2px 1.2px at 21% 88%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+    radial-gradient(1px 1px at 55% 22%, rgba(225, 6, 0, 0.55) 50%, transparent 100%),
+    radial-gradient(1px 1px at 20% 50%, rgba(255, 255, 255, 0.5) 50%, transparent 100%),
+    radial-gradient(1px 1px at 70% 30%, rgba(255, 255, 255, 0.4) 50%, transparent 100%),
+    radial-gradient(1px 1px at 50% 75%, rgba(255, 255, 255, 0.45) 50%, transparent 100%);
+  background-size:
+    260px 260px,
+    260px 260px,
+    260px 260px,
+    260px 260px,
+    260px 260px,
+    260px 260px,
+    260px 260px,
+    440px 440px,
+    440px 440px,
+    440px 440px;
+}
+
+/* Space Odyssey light: the Discovery One pod interior — clean neutral-gray
+ * dot grid, inheriting the default `.viewer-grid` rules with a slightly
+ * larger cell so the room feels spacious. */
+[data-theme="space"][data-mode="light"] .viewer-grid {
+  background-size: 28px 28px;
 }
 
 /* ---------- Brutalist global overrides ---------- */
@@ -385,6 +564,38 @@
   background: var(--primary);
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 55%, transparent),
     0 0 6px 0 color-mix(in srgb, var(--primary) 60%, transparent);
+}
+
+/* Space Odyssey: the status dot becomes HAL's eye. Slow, breathing red
+ * pulse on pitch-black — an unmistakable homage. */
+[data-theme="space"][data-mode="dark"] .status-dot {
+  background: var(--primary);
+  animation: hal-eye 3s ease-in-out infinite;
+}
+
+/* Primary buttons get a soft red bloom so they read as "armed" from the
+ * cockpit. Kept subtle so they don't hurt to look at in extended sessions. */
+[data-theme="space"][data-mode="dark"] .bg-primary {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 50%, transparent),
+    0 0 14px 0 color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+/* Progress bar picks up the same bloom so long loads feel in-universe. */
+[data-theme="space"][data-mode="dark"] .progress-track::after {
+  background: var(--primary);
+  box-shadow: 0 0 10px 0 color-mix(in srgb, var(--primary) 60%, transparent);
+}
+
+@keyframes hal-eye {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 55%, transparent),
+      0 0 4px 0 color-mix(in srgb, var(--primary) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent),
+      0 0 14px 0 color-mix(in srgb, var(--primary) 80%, transparent);
+  }
 }
 
 @keyframes pulse {
